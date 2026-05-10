@@ -1,12 +1,33 @@
-//! Decoder for PaperPort 2 (.max) image scans.
+//! Decoder for PaperPort 2 (`.max`) image scans.
 //!
-//! The PaperPort 2 file format ("ViGBe") is a proprietary container used by
-//! ScanSoft's PaperPort 2 (1996) for 1-bit scanned documents. Each image
-//! chunk wraps a CCITT-T.6 (Group 4 fax) compressed bitmap with a custom
-//! per-line marker dispatcher.
+//! The PaperPort 2 file format ("ViGBe") is a proprietary container used
+//! by ScanSoft's PaperPort 2 (1996) for 1-bit scanned documents. Each
+//! image chunk wraps a CCITT-T.6 (Group 4 fax) compressed bitmap with a
+//! custom per-line marker dispatcher.
 //!
-//! See `docs/format.md` and `docs/decoder.md` in this repo for the format
+//! # Quick start
+//!
+//! ```no_run
+//! use vigb_decoder::{decode_max_file, write_pdf, Config};
+//! use std::path::Path;
+//!
+//! let pages = decode_max_file("scan.max", &Config::default())?;
+//! write_pdf(&pages, Path::new("scan.pdf"))?;
+//! # Ok::<(), vigb_decoder::MaxError>(())
+//! ```
+//!
+//! # Format documentation
+//!
+//! See `docs/format.md` and `docs/decoder.md` in the repo for the format
 //! specification and the canonical decoder behaviour.
+//!
+//! # Output bitmap polarity
+//!
+//! [`Page::bitmap`] is 1-bit packed, MSB-first per byte. **Bit value 1
+//! means BLACK.** This matches the PDF `/Indexed [/DeviceGray 1 <FF 00>]`
+//! convention used by [`write_pdf`]. If you're comparing against a PNG
+//! ground-truth in PIL `'1'` mode, be aware that PIL `'1'` uses the
+//! opposite convention (bit 1 = white) — invert before comparing.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
