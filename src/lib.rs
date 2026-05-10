@@ -22,6 +22,7 @@ mod ccitt;
 mod chunks;
 mod decoder;
 mod dispatch;
+mod preview;
 
 pub use decoder::{DecodeStats, Page, Preview};
 

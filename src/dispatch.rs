@@ -51,7 +51,7 @@ fn is_t0_drift(kind: Option<DispatchKind>, cfg: &Config) -> bool {
 pub(crate) fn decode_image_chunk(
     data: &[u8],
     chunk_start: usize,
-    _chunk_length: usize,
+    chunk_length: usize,
     cfg: &Config,
 ) -> Page {
     // ── Chunk header ────────────────────────────────────────────────────────
@@ -402,6 +402,12 @@ pub(crate) fn decode_image_chunk(
 
     // Remaining rows are already zero (bitmap initialised to all-zero = white).
 
+    let preview = if cfg.embed_preview {
+        crate::preview::decode_preview_chunk(data, chunk_start, chunk_length, true)
+    } else {
+        None
+    };
+
     Page {
         width,
         height,
@@ -409,7 +415,7 @@ pub(crate) fn decode_image_chunk(
         dpi_y,
         row_bytes: row_bytes as u32,
         bitmap,
-        preview: None,
+        preview,
         stats,
     }
 }
