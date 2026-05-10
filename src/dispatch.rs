@@ -5,8 +5,10 @@
 //! (bug4=true, strict_t0=true, drop_blank_after_drift=true,
 //! suppress_t1_all=true) still produce n_fail=0 on the synthetic fixture.
 
+use crate::chunks::MAX_IMAGE_PIXELS;
 use crate::config::{Config, DispatchKind, T0DropMode};
 use crate::decoder::{decomp_line, resync_probe, table_from_raw, table_to_row, DecodeStats, Page};
+use crate::error::MaxError;
 
 /// Build the initial all-white sentinel reference table.
 ///
@@ -44,17 +46,26 @@ fn is_t0_drift(kind: Option<DispatchKind>, cfg: &Config) -> bool {
     }
 }
 
-/// Decode one image chunk starting at `chunk_start` in `data`. Returns
-/// the rendered `Page` (preview field unset — populated by Task 11).
-/// `chunk_length` is the chunk's total byte length from `ChunkRef::length`
-/// and is used by Task 11's preview decoder.
+/// Decode one image chunk starting at `chunk_start` in `data`.
+///
+/// `chunk_start` and `chunk_length` are expected to come from
+/// [`crate::chunks::find_image_chunks`], which guarantees the chunk
+/// satisfies `length >= IMAGE_CHUNK_MIN_LEN` and fits within `data`.
+///
+/// # Errors
+///
+/// Returns [`MaxError::ImageTooLarge`] if the chunk's declared
+/// dimensions exceed [`MAX_IMAGE_PIXELS`].
 pub(crate) fn decode_image_chunk(
     data: &[u8],
     chunk_start: usize,
     chunk_length: usize,
     cfg: &Config,
-) -> Page {
+) -> Result<Page, MaxError> {
     // ── Chunk header ────────────────────────────────────────────────────────
+    // Safe by find_image_chunks invariant: chunk_length >= IMAGE_CHUNK_MIN_LEN
+    // and chunk_start + chunk_length <= data.len(), so all reads in
+    // [chunk_start + 0x26 .. chunk_start + 0x42] are in bounds.
     let read_u16 = |off: usize| {
         u16::from_le_bytes(
             data[chunk_start + off..chunk_start + off + 2]
@@ -74,9 +85,31 @@ pub(crate) fn decode_image_chunk(
     };
     // bpp at +0x2e — only 1-bit images supported.
 
+    // CRIT-02: cap declared dimensions before any allocation. Without this,
+    // a 64-byte chunk header with width = height = 0xFFFF requests
+    // ~537 MB. checked_mul also defends 32-bit targets where row_bytes *
+    // height could wrap.
+    let pixels = (width as u64).saturating_mul(height as u64);
+    if pixels > MAX_IMAGE_PIXELS {
+        return Err(MaxError::ImageTooLarge {
+            width,
+            height,
+            pixels,
+            max: MAX_IMAGE_PIXELS,
+        });
+    }
+
     let line_bytes = width.div_ceil(8) as usize;
     let row_bytes = (line_bytes + 3) & !3usize;
-    let mut bitmap = vec![0u8; row_bytes * height as usize];
+    let bitmap_bytes = row_bytes
+        .checked_mul(height as usize)
+        .ok_or(MaxError::ImageTooLarge {
+            width,
+            height,
+            pixels,
+            max: MAX_IMAGE_PIXELS,
+        })?;
+    let mut bitmap = vec![0u8; bitmap_bytes];
     let mut stats = DecodeStats::default();
 
     // ── Reference table ─────────────────────────────────────────────────────
@@ -408,7 +441,7 @@ pub(crate) fn decode_image_chunk(
         None
     };
 
-    Page {
+    Ok(Page {
         width,
         height,
         dpi_x,
@@ -417,5 +450,5 @@ pub(crate) fn decode_image_chunk(
         bitmap,
         preview,
         stats,
-    }
+    })
 }

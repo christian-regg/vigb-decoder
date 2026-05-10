@@ -41,6 +41,8 @@ pub use config::{Config, ConfigBuilder, DispatchKind, T0DropMode};
 mod bitstream;
 mod ccitt;
 mod chunks;
+pub use chunks::{MAX_IMAGE_PIXELS, MAX_PREVIEW_PIXELS};
+
 mod decoder;
 mod dispatch;
 mod pdf;
@@ -55,9 +57,11 @@ pub use pdf::{write_pdf, write_pdf_bytes, PdfOptions};
 ///
 /// # Errors
 ///
-/// Returns [`MaxError::BadMagic`] if the input does not begin with the
-/// `ViGBe` magic. Returns [`MaxError::Truncated`] if no valid image
-/// chunks are found in the file.
+/// - [`MaxError::BadMagic`] if the input does not begin with the
+///   `ViGBe` magic.
+/// - [`MaxError::Truncated`] if no valid image chunks are found.
+/// - [`MaxError::ImageTooLarge`] if any chunk's declared dimensions
+///   exceed [`MAX_IMAGE_PIXELS`].
 pub fn decode_max(data: &[u8], cfg: &Config) -> Result<Vec<Page>> {
     if data.len() < 5 || &data[..5] != b"ViGBe" {
         return Err(MaxError::BadMagic { offset: 0u64 });
@@ -68,7 +72,7 @@ pub fn decode_max(data: &[u8], cfg: &Config) -> Result<Vec<Page>> {
     }
     let mut out = Vec::with_capacity(chunks.len());
     for chunk in chunks {
-        out.push(dispatch::decode_image_chunk(data, chunk.offset, chunk.length, cfg));
+        out.push(dispatch::decode_image_chunk(data, chunk.offset, chunk.length, cfg)?);
     }
     Ok(out)
 }

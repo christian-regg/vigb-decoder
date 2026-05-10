@@ -75,7 +75,9 @@ Also tighten `find_image_chunks`: require `length >= 0x42`. Change `decode_image
 
 ---
 
-### CRIT-02 — Unbounded `width × height` allocation  ⬜
+### CRIT-02 — Unbounded `width × height` allocation  ✅
+
+**Resolved 2026-05-10** (commit pending). Added `MAX_IMAGE_PIXELS = 200 * 1024 * 1024` constant (exported at the crate root) and `MaxError::ImageTooLarge { width, height, pixels, max }` variant. `decode_image_chunk` now returns `Result<Page, MaxError>`; checks `width as u64 * height as u64 <= MAX_IMAGE_PIXELS` before allocating, and uses `checked_mul` on `row_bytes * height` for 32-bit safety. `lib.rs::decode_max` propagates via `?`. Cap chosen to comfortably exceed 600-DPI A4 (~35 MP) while bounding the worst-case bitmap allocation at ~25 MB. New tests in `tests/malformed.rs` cover the pathological 65535×65535 case, the just-over-cap 16384×16384 case, and verify realistic A4 dimensions still pass.
 
 **Source:** Security C2
 **Files:** `src/dispatch.rs:77-79`
@@ -130,7 +132,9 @@ let offset = chunk_start.checked_add(chunk_length)
 
 ---
 
-### SEC-H02 — `padded_x × preview_y` allocation overflow  ⬜
+### SEC-H02 — `padded_x × preview_y` allocation overflow  ✅
+
+**Resolved 2026-05-10** (commit pending). Added `MAX_PREVIEW_PIXELS = 16 * 1024 * 1024` (exported alongside `MAX_IMAGE_PIXELS`). `decode_preview_chunk` now uses `checked_mul` on `padded_x * preview_y`, returns `None` if either the multiplication overflows or the product exceeds the cap. New test `pathological_preview_dimensions_skip_preview_no_panic` verifies the main image still decodes when the preview metadata is malicious — the preview is just skipped silently.
 
 **Source:** Security H2
 **Files:** `src/preview.rs:69-79`

@@ -32,6 +32,25 @@ pub enum MaxError {
         /// Pixel column where the underrun was detected.
         x: u32,
     },
+    /// An image chunk's declared dimensions would require an unreasonably
+    /// large allocation. Crafted `.max` files can claim `width = height =
+    /// 65535`, which would request hundreds of MB from a 64-byte header.
+    /// The decoder rejects any image whose `width * height` exceeds
+    /// [`crate::MAX_IMAGE_PIXELS`].
+    #[error(
+        "image dimensions {width}x{height} exceed maximum supported size \
+         ({pixels} pixels, max {max} pixels)"
+    )]
+    ImageTooLarge {
+        /// Declared width in pixels.
+        width: u32,
+        /// Declared height in pixels.
+        height: u32,
+        /// Computed pixel count (`width * height`), saturating on overflow.
+        pixels: u64,
+        /// The configured maximum allowed pixel count.
+        max: u64,
+    },
     /// Underlying IO error.
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
@@ -60,6 +79,19 @@ mod tests {
     fn bit_underrun_displays() {
         let e = MaxError::BitUnderrun { y: 305, x: 2376 };
         assert_eq!(e.to_string(), "decoder bit underrun at line 305, x=2376");
+    }
+
+    #[test]
+    fn image_too_large_displays() {
+        let e = MaxError::ImageTooLarge {
+            width: 65535,
+            height: 65535,
+            pixels: 4_294_836_225,
+            max: 200 * 1024 * 1024,
+        };
+        let s = e.to_string();
+        assert!(s.contains("65535x65535"));
+        assert!(s.contains("4294836225 pixels"));
     }
 
     #[test]

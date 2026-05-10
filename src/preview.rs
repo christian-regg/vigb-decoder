@@ -1,6 +1,6 @@
 //! Preview thumbnail decoder. Mirrors `max2pdf.py:840-947`.
 
-use crate::chunks::{read_u16_at, ChunkRef};
+use crate::chunks::{read_u16_at, ChunkRef, MAX_PREVIEW_PIXELS};
 use crate::decoder::Preview;
 
 /// Decode a preview RLE byte stream. Returns `(grayscale_pixels, type3_count)`.
@@ -75,7 +75,14 @@ pub(crate) fn decode_preview_chunk(
     let main_h = read_u16_at(data, chunk, 0x28)? as usize;
 
     let padded_x = (preview_x + 3) & !3;
-    let target_pixels = padded_x * preview_y;
+    // SEC-H02: cap intermediate-buffer pixel count. A 6-byte preview header
+    // claiming 0xFFFF × 0xFFFF would otherwise request ~4 GB of grayscale
+    // pixels. Bail safely instead.
+    let target_pixels = (padded_x as u64).checked_mul(preview_y as u64)?;
+    if target_pixels > MAX_PREVIEW_PIXELS {
+        return None;
+    }
+    let target_pixels = target_pixels as usize;
     let offset = chunk_start + chunk_length - preview_size;
     let (mut pixels, _type3) = decode_preview_rle(
         &data[offset..chunk_start + chunk_length],

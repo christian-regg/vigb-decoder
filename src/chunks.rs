@@ -10,6 +10,24 @@
 /// `+0x40..+0x42`. Chunks shorter than this cannot be safely decoded.
 pub(crate) const IMAGE_CHUNK_MIN_LEN: usize = 0x42;
 
+/// Maximum supported pixel count for the main image (`width * height`).
+///
+/// Set to 200 megapixels — comfortably above any realistic scanning
+/// resolution (a 600 DPI A4 page is ~35 megapixels) but far below what
+/// a malicious 64-byte chunk header (`width = height = 0xFFFF`,
+/// ~4.3 gigapixels) could request. At 1 bit per pixel the resulting
+/// bitmap allocation tops out at ~25 MB.
+pub const MAX_IMAGE_PIXELS: u64 = 200 * 1024 * 1024;
+
+/// Maximum supported pixel count for the intermediate preview buffer
+/// (`padded_x * preview_height`).
+///
+/// Set to 16 megapixels. Real previews are 102×146 (≈ 15 thousand
+/// pixels); even a generous 4096×4096 thumbnail is well within. The
+/// preview buffer is 8-bit grayscale before being upscaled and
+/// thresholded to the main image's 1-bit raster.
+pub const MAX_PREVIEW_PIXELS: u64 = 16 * 1024 * 1024;
+
 /// A discovered image chunk in the file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ChunkRef {
