@@ -16,3 +16,5 @@ pub use error::{MaxError, Result};
 
 mod config;
 pub use config::{Config, ConfigBuilder, DispatchKind, T0DropMode};
+
+mod bitstream;
