@@ -28,7 +28,7 @@
 //!
 //! # Cross-check note
 //!
-//! The values below match `python-reference/max2pdf.py`'s tables (also derived from the same
+//! The values below match `python-reference/vigb_max2pdf.py`'s tables (also derived from the same
 //! ITU standard). That agreement is expected — both implementations
 //! transcribe from the same public specification. The provenance of THIS
 //! file's values is the ITU/TIFF sources cited above, not the GPL

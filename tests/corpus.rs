@@ -2,9 +2,9 @@
 //!
 //! Decodes every `.max` file in a directory and asserts the rendered
 //! bitmap matches a known-good reference produced by the Python
-//! `python-reference/max2pdf.py`. Used to catch decoder regressions
-//! against the user's private archive without committing personal
-//! documents to git.
+//! `python-reference/vigb_max2pdf.py`. Used to catch decoder
+//! regressions against the user's private archive without committing
+//! personal documents to git.
 //!
 //! Gated behind the `corpus` Cargo feature; CI never enables it.
 //!
@@ -23,7 +23,7 @@
 //! `.pdf` extension). Generate them once with:
 //!
 //! ```powershell
-//! python <repo>/python-reference/max2pdf.py "$env:VIGB_DECODER_CORPUS\*.max" -o "$env:VIGB_DECODER_REFERENCE"
+//! python <repo>/python-reference/vigb_max2pdf.py "$env:VIGB_DECODER_CORPUS\*.max" -o "$env:VIGB_DECODER_REFERENCE"
 //! ```
 //!
 //! The test extracts the 1-bit image XObject from page 0 of each

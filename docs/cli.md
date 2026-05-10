@@ -2,7 +2,7 @@
 
 This table maps every `vigb-max2pdf` Rust CLI flag to the equivalent
 flag in the Python reference decoder
-([`python-reference/max2pdf.py`](../python-reference/max2pdf.py)).
+([`python-reference/vigb_max2pdf.py`](../python-reference/vigb_max2pdf.py)).
 Long names match exactly so muscle memory transfers.
 
 | Rust flag | Default | What it does |

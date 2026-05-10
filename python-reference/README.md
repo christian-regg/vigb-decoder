@@ -1,17 +1,17 @@
 # Python reference decoder
 
-`max2pdf.py` — pure-Python decoder for PaperPort 2 (`.max`) image scans.
-Sibling implementation to the Rust crate in this repo; same algorithm,
-same canonical bit-perfect output.
+`vigb_max2pdf.py` — pure-Python decoder for PaperPort 2 (`.max`)
+image scans. Sibling implementation to the Rust crate in this repo;
+same algorithm, same canonical bit-perfect output.
 
 ## When to use this vs the Rust binary
 
-| | Rust (`cargo install vigb-decoder`) | Python (`python max2pdf.py`) |
+| | Rust (`cargo install vigb-decoder`) | Python (`python vigb_max2pdf.py`) |
 |---|---|---|
 | Install | needs Rust toolchain (or pre-built binary) | needs Python 3 only |
 | Speed | ~38 ms/page on 2464×3508 scans | ~150 ms/page (4× slower) |
 | Distribution | crates.io + GitHub releases | this single file |
-| Library use | `cargo add vigb-decoder` | `import max2pdf; pages = max2pdf.parse_max(...)` |
+| Library use | `cargo add vigb-decoder` | `import vigb_max2pdf; pages = vigb_max2pdf.parse_max(...)` |
 
 For most users the Rust binary is the path of least resistance. Use
 the Python script if you can't install Rust, want to script the
@@ -21,11 +21,11 @@ high-level language.
 ## Usage
 
 ```
-python max2pdf.py scan.max scan2.max -o out/
+python vigb_max2pdf.py scan.max scan2.max -o out/
 ```
 
-See `python max2pdf.py --help` for the full flag list. The CLI flags
-match the Rust binary's `max2pdf` 1:1.
+See `python vigb_max2pdf.py --help` for the full flag list. The CLI
+flags match the Rust binary's `vigb-max2pdf` 1:1.
 
 ## License + provenance
 

@@ -46,7 +46,7 @@ pub enum DispatchKind {
 /// Decoder configuration.
 ///
 /// `Config::default()` produces canonical behaviour (matches the Python
-/// `python-reference/max2pdf.py` defaults at corpus median IoU = 1.000). All other fields
+/// `python-reference/vigb_max2pdf.py` defaults at corpus median IoU = 1.000). All other fields
 /// are diagnostic or experimental — leave them as default unless you know
 /// what you're flipping.
 #[derive(Debug, Clone)]

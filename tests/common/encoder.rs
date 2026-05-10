@@ -316,7 +316,7 @@ fn encode_run(bw: &mut BitWriter, run: u32, colour: u32) {
 /// (same shape as `decoder::table_from_raw` / `table_from_raw` in the
 /// fixture generator).
 ///
-/// Uses a0 = 0 to match the canonical ViGBe decoder (`python-reference/max2pdf.py:_decomp_line`,
+/// Uses a0 = 0 to match the canonical ViGBe decoder (`python-reference/vigb_max2pdf.py:_decomp_line`,
 /// `decoder::decomp_line`), both of which initialise `x = 0` (not -1 as in
 /// standard T.6). Using a0=-1 (the T.6 default) causes a systematic 1-pixel
 /// shift on every first H-mode segment because the decoder interprets a

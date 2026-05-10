@@ -1,4 +1,4 @@
-//! Preview thumbnail decoder. Mirrors `python-reference/max2pdf.py:840-947`.
+//! Preview thumbnail decoder. Mirrors `python-reference/vigb_max2pdf.py:840-947`.
 
 use crate::chunks::{read_u16_at, ChunkRef, MAX_PREVIEW_PIXELS};
 use crate::decoder::Preview;

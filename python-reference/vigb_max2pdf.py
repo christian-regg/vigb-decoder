@@ -15,7 +15,7 @@ or table values from `paperman` (GPL-2-or-later) is used. See
 `docs/provenance.md` for the full clean-room separation notes.
 
 Usage:
-    python max2pdf.py <input.max> [<input2.max> ...] [-o out_dir]
+    python vigb_max2pdf.py <input.max> [<input2.max> ...] [-o out_dir]
 """
 
 from __future__ import annotations

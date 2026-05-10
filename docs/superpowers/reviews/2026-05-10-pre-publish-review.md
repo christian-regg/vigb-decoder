@@ -444,6 +444,8 @@ Also disambiguated cross-reference comments so readers can't confuse the in-repo
 
 `python-reference/max2pdf.py` itself was NOT renamed — kept the .py name to avoid breaking existing Python users; the path prefix in cross-references provides the disambiguation.
 
+**Follow-up 2026-05-10**: per user request for full consistency, the Python sibling was also renamed to `python-reference/vigb_max2pdf.py` (underscore variant chosen to keep `import vigb_max2pdf` working — hyphens would break Python's module-import grammar). Updated: root README "Pure-Python alternative" section + invocation example; `python-reference/README.md` heading + comparison table + import example + usage block; `docs/cli.md` link target; the Python file's own `Usage:` docstring; and all `python-reference/max2pdf.py:` cross-references in `src/`, `tests/`, `tools/` to `python-reference/vigb_max2pdf.py:`. Verified `python python-reference/vigb_max2pdf.py --help` runs.
+
 **Source:** Legal S-1
 **Files:** `Cargo.toml:25`, `src/bin/max2pdf.rs:11`, `README.md` install snippet, `docs/cli.md`, every `src/*.rs` cross-reference comment
 

@@ -47,11 +47,11 @@ See [`docs/cli.md`](docs/cli.md) for the full flag list.
 ## Pure-Python alternative
 
 If you can't install Rust, a pure-Python sibling implementation lives
-at [`python-reference/max2pdf.py`](python-reference/max2pdf.py). Same
-algorithm, same canonical bit-perfect output, ~4× slower. Same CLI
-flags. Same MIT/Apache-2.0 license.
+at [`python-reference/vigb_max2pdf.py`](python-reference/vigb_max2pdf.py).
+Same algorithm, same canonical bit-perfect output, ~4× slower. Same
+CLI flags. Same MIT/Apache-2.0 license.
 
-    python python-reference/max2pdf.py scan.max -o out/
+    python python-reference/vigb_max2pdf.py scan.max -o out/
 
 ## Library use
 
