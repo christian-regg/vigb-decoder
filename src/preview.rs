@@ -1,5 +1,6 @@
 //! Preview thumbnail decoder. Mirrors `max2pdf.py:840-947`.
 
+use crate::chunks::{read_u16_at, ChunkRef};
 use crate::decoder::Preview;
 
 /// Decode a preview RLE byte stream. Returns `(grayscale_pixels, type3_count)`.
@@ -42,29 +43,36 @@ pub(crate) fn decode_preview_rle(
 
 /// Decode the preview thumbnail at the end of an image chunk and (when
 /// `scale_to_a4`) upscale to the main image's pixel dimensions. Returns
-/// `None` if the chunk has no preview metadata.
+/// `None` if the chunk has no preview metadata or has malformed preview
+/// fields (e.g. `preview_size` larger than `chunk_length`).
+///
+/// `chunk_start` and `chunk_length` are expected to come from
+/// [`crate::chunks::find_image_chunks`], which guarantees the chunk
+/// satisfies `chunk_length >= IMAGE_CHUNK_MIN_LEN` and fits within
+/// `data`. For any other caller, `read_u16_at` would return `None`
+/// safely rather than panicking.
 pub(crate) fn decode_preview_chunk(
     data: &[u8],
     chunk_start: usize,
     chunk_length: usize,
     scale_to_a4: bool,
 ) -> Option<Preview> {
-    let read_u16 = |off: usize| {
-        u16::from_le_bytes(
-            data[chunk_start + off..chunk_start + off + 2]
-                .try_into()
-                .unwrap(),
-        ) as u32
-    };
+    let chunk = ChunkRef { offset: chunk_start, length: chunk_length };
 
-    let preview_size = read_u16(0x3c) as usize;
-    let preview_x = read_u16(0x3e) as usize;
-    let preview_y = read_u16(0x40) as usize;
+    let preview_size = read_u16_at(data, chunk, 0x3c)? as usize;
+    let preview_x = read_u16_at(data, chunk, 0x3e)? as usize;
+    let preview_y = read_u16_at(data, chunk, 0x40)? as usize;
     if preview_size == 0 || preview_x == 0 || preview_y == 0 {
         return None;
     }
-    let main_w = read_u16(0x26) as usize;
-    let main_h = read_u16(0x28) as usize;
+    // Preview RLE lives at chunk_start + chunk_length - preview_size.
+    // A malformed `preview_size > chunk_length` would underflow `usize`;
+    // bail safely instead.
+    if preview_size > chunk_length {
+        return None;
+    }
+    let main_w = read_u16_at(data, chunk, 0x26)? as usize;
+    let main_h = read_u16_at(data, chunk, 0x28)? as usize;
 
     let padded_x = (preview_x + 3) & !3;
     let target_pixels = padded_x * preview_y;
@@ -152,5 +160,40 @@ mod tests {
         let buf = [0x41u8];
         let (out, _) = decode_preview_rle(&buf, 2, 1);
         assert_eq!(out, vec![0xFFu8; 2]);
+    }
+
+    #[test]
+    fn chunk_decoder_returns_none_when_preview_size_exceeds_chunk() {
+        // Build a buffer large enough to read all header fields but with
+        // a preview_size field claiming more bytes than the chunk holds.
+        // Pre-fix this would underflow `chunk_start + chunk_length - preview_size`
+        // and then panic on the slice index.
+        let mut data = vec![0u8; 0x100];
+        let chunk_start = 0;
+        let chunk_length = 0x80usize;
+        // preview_size at +0x3c
+        data[chunk_start + 0x3c..chunk_start + 0x3e]
+            .copy_from_slice(&0xFFFFu16.to_le_bytes());
+        // preview_x at +0x3e
+        data[chunk_start + 0x3e..chunk_start + 0x40]
+            .copy_from_slice(&102u16.to_le_bytes());
+        // preview_y at +0x40
+        data[chunk_start + 0x40..chunk_start + 0x42]
+            .copy_from_slice(&146u16.to_le_bytes());
+        // width / height at +0x26 / +0x28
+        data[chunk_start + 0x26..chunk_start + 0x28]
+            .copy_from_slice(&16u16.to_le_bytes());
+        data[chunk_start + 0x28..chunk_start + 0x2a]
+            .copy_from_slice(&4u16.to_le_bytes());
+
+        assert!(decode_preview_chunk(&data, chunk_start, chunk_length, false).is_none());
+    }
+
+    #[test]
+    fn chunk_decoder_returns_none_for_undersized_chunk() {
+        // chunk_length < IMAGE_CHUNK_MIN_LEN (0x42): header reads should
+        // bail safely via read_u16_at returning None.
+        let data = vec![0u8; 0x100];
+        assert!(decode_preview_chunk(&data, 0, 0x10, false).is_none());
     }
 }
