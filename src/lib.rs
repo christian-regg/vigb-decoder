@@ -11,4 +11,5 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-// Modules wired up incrementally in later tasks.
+mod error;
+pub use error::{MaxError, Result};
