@@ -130,9 +130,29 @@ pub(crate) fn decode_image_chunk(
     // 'BAD' | 'T0' | 'T1' | 'BLANK').
     let mut last_kind: Option<DispatchKind> = None;
 
-    // Smart-resync budget: 0 in Config means unlimited (Python: float('inf')).
-    let mut resync_budget_remaining: u32 =
-        if cfg.fail_resync_budget == 0 { u32::MAX } else { cfg.fail_resync_budget };
+    // SEC-M02: clamp user-supplied resync parameters to safe upper bounds
+    // before use. Without these caps, a `Config` constructed with
+    // pathological values (e.g. fail_resync_max = 1_000_000,
+    // fail_resync_lookahead = 1_000_000) would cause `(2K + 1) * lookahead`
+    // CCITT decode calls per FAIL event — quadratic in the user-supplied
+    // params, multiplied by `fail_resync_budget` per page.
+    //
+    // Caps chosen empirically to comfortably exceed any value that produces
+    // useful results on the corpus (`fail_resync_max = 4` was the
+    // 10th-session champion; `fail_resync_lookahead = 5` is the default).
+    // Pre-1.0: callers who hit these caps almost certainly have a bug.
+    const MAX_RESYNC_K: u32 = 32;
+    const MAX_RESYNC_LOOKAHEAD: u32 = 64;
+    const MAX_RESYNC_BUDGET: u32 = 1024;
+    let cfg_fail_resync_max = cfg.fail_resync_max.min(MAX_RESYNC_K);
+    let cfg_fail_resync_lookahead = cfg.fail_resync_lookahead.min(MAX_RESYNC_LOOKAHEAD);
+    // Smart-resync budget: 0 in Config means "use the cap" (was "unlimited"
+    // pre-SEC-M02; capped at MAX_RESYNC_BUDGET to bound worst-case work).
+    let mut resync_budget_remaining: u32 = if cfg.fail_resync_budget == 0 {
+        MAX_RESYNC_BUDGET
+    } else {
+        cfg.fail_resync_budget.min(MAX_RESYNC_BUDGET)
+    };
 
     // ── Main decode loop ─────────────────────────────────────────────────────
     //
@@ -337,7 +357,7 @@ pub(crate) fn decode_image_chunk(
                 // Python lines 710-759. Only on isolated FAIL (prev not in
                 // {FAIL, V0, BAD, T1}).
                 if is_real_fail
-                    && cfg.fail_resync_max > 0
+                    && cfg_fail_resync_max > 0
                     && resync_budget_remaining > 0
                     && !matches!(
                         prev_kind,
@@ -353,7 +373,7 @@ pub(crate) fn decode_image_chunk(
                     // (the "naive" next position in Python).
                     let naive = pos;
                     let ref_for_probe = ref_table.clone();
-                    let k = cfg.fail_resync_max as i64;
+                    let k = cfg_fail_resync_max as i64;
                     let mut best_off: i64 = 0;
                     let mut best_score: i64 = i64::MIN;
 
@@ -369,7 +389,7 @@ pub(crate) fn decode_image_chunk(
                             &ref_for_probe,
                             width as i32,
                             line_bytes,
-                            cfg.fail_resync_lookahead,
+                            cfg_fail_resync_lookahead,
                             cfg.bug4,
                             cfg.lazy_bit_loading,
                         );
@@ -384,7 +404,7 @@ pub(crate) fn decode_image_chunk(
                     }
 
                     // Record 2*K+1 probes for this FAIL event; decrement budget.
-                    stats.resync_probes += 2 * cfg.fail_resync_max + 1;
+                    stats.resync_probes += 2 * cfg_fail_resync_max + 1;
                     resync_budget_remaining = resync_budget_remaining.saturating_sub(1);
 
                     // Confidence gate: commit only if margin >= min_confidence.

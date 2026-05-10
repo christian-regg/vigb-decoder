@@ -188,7 +188,13 @@ if consumed_bytes == 0 {
 
 ---
 
-### SEC-M02 — Unbounded `fail_resync_max × fail_resync_lookahead`  ⬜
+### SEC-M02 — Unbounded `fail_resync_max × fail_resync_lookahead`  ✅
+
+**Resolved 2026-05-10** (commit pending). Added internal caps `MAX_RESYNC_K = 32`, `MAX_RESYNC_LOOKAHEAD = 64`, `MAX_RESYNC_BUDGET = 1024` at the top of `decode_image_chunk`; the user-supplied `cfg.fail_resync_*` values are clamped to local variables `cfg_fail_resync_max` / `cfg_fail_resync_lookahead` / `resync_budget_remaining` that are used throughout the resync block. `cfg.fail_resync_budget == 0` (previously meant "unlimited" via `u32::MAX`) now means "use the cap" (= 1024) — semantically harmless because real workflows never approach 1024 isolated FAILs per page.
+
+Caps chosen to comfortably exceed any value with corpus utility (`fail_resync_max = 4` was the 10th-session champion; `fail_resync_lookahead = 5` is the default). New test `pathological_resync_config_does_not_hang` builds a chunk that triggers an isolated FAIL after a BLANK (so `prev_kind = Ok` opens the resync gate), runs `decode_max` with `fail_resync_max = u32::MAX` and similar, and asserts completion in <5 s. Without the cap the loop would iterate ~16 quintillion times and the test would hang the test binary.
+
+Decision: clamp at use site rather than in `ConfigBuilder::build()` — the public `Config` fields are `pub`, so callers can bypass the builder via direct field access. Use-site clamping is the only enforcement that holds.
 
 **Source:** Security M2
 **Files:** `src/config.rs` (in `ConfigBuilder::build()`), `src/dispatch.rs:315`

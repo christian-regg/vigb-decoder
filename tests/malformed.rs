@@ -185,6 +185,58 @@ fn zero_consume_type2_fails_terminate_in_bounded_time() {
 }
 
 #[test]
+fn pathological_resync_config_does_not_hang() {
+    // SEC-M02: a `Config` with `fail_resync_max = u32::MAX` and
+    // `fail_resync_lookahead = u32::MAX` would, pre-cap, run
+    // `(2K + 1) * lookahead` CCITT decode calls per FAIL event —
+    // ~16 quintillion iterations for a single isolated FAIL.
+    //
+    // Trigger: a chunk whose body is `[0xC0, 0x80, 0x00, 0x00, ...]`.
+    // The 0xC0 is a type-3 BLANK marker that sets last_kind = Ok. The
+    // following 0x80 is a type-2 marker; bytes 0x00 0x00 fail TAB7
+    // (top-7 prefix `0b0000000` has no entry), producing an isolated
+    // FAIL whose `prev_kind = Ok` opens the resync gate.
+    //
+    // With the SEC-M02 cap (MAX_RESYNC_K = 32, MAX_RESYNC_LOOKAHEAD =
+    // 64), the resync probe completes in well under a second.
+    use std::time::Instant;
+
+    let mut data = vec![0u8; 0x200];
+    data[..5].copy_from_slice(b"ViGBe");
+    let chunk_off = 0x90usize;
+    let chunk_len = 0x80u32;
+    data[chunk_off] = b'D';
+    data[chunk_off + 1] = b'L';
+    data[chunk_off + 2..chunk_off + 6].copy_from_slice(&chunk_len.to_le_bytes());
+    data[chunk_off + 6..chunk_off + 10]
+        .copy_from_slice(&0x0001_4000u32.to_le_bytes());
+    data[chunk_off + 0x26..chunk_off + 0x28].copy_from_slice(&8u16.to_le_bytes());
+    data[chunk_off + 0x28..chunk_off + 0x2a].copy_from_slice(&2u16.to_le_bytes());
+    let body = chunk_off + 0x42;
+    data[body] = 0xC0; // BLANK 1 line — sets last_kind = Ok
+    data[body + 1] = 0x80; // type-2 marker
+    // bytes that fail TAB7 — top-7 prefix 0b0000000
+    data[body + 2] = 0x00;
+    data[body + 3] = 0x00;
+
+    let cfg = Config::builder()
+        .fail_resync_max(u32::MAX)
+        .fail_resync_lookahead(u32::MAX)
+        .fail_resync_budget(u32::MAX)
+        .build();
+
+    let start = Instant::now();
+    let _ = decode_max(&data, &cfg);
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed.as_secs() < 5,
+        "decode_max took {:?} with pathological resync config; \
+         SEC-M02 cap may have regressed",
+        elapsed
+    );
+}
+
+#[test]
 fn pathological_preview_dimensions_skip_preview_no_panic() {
     // Construct a chunk with a tiny image but pathological preview
     // dimensions. The preview decoder bails (returns None) instead of
