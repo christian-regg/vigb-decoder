@@ -3,6 +3,14 @@
 ## Pre-release
 
 - [ ] `cargo test` green on Linux + Windows + macOS (CI).
+- [ ] **`cargo test --features corpus --test corpus` green against the
+      private archive** (set `VIGB_DECODER_CORPUS` and
+      `VIGB_DECODER_REFERENCE` first; reference PDFs come from the
+      Python `max2pdf.py` over the same `.max` files). The synthetic
+      round-trip is necessary but not sufficient — it does not exercise
+      black runs of length 26–29 (or other rarely-seen CCITT codes), so
+      table-transcription bugs can slip past it. The corpus test
+      catches them.
 - [ ] `cargo doc --no-deps` clean (no `missing_docs` warnings).
 - [ ] `cargo clippy --all-targets -- -D warnings` clean.
 - [ ] `cargo fmt --all -- --check` clean.
