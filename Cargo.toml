@@ -18,6 +18,10 @@ path = "src/lib.rs"
 name = "max2pdf"
 path = "src/bin/max2pdf.rs"
 
+[[bin]]
+name = "encode-fixture"
+path = "tools/encode-fixture/main.rs"
+
 [dependencies]
 thiserror = "2"
 
