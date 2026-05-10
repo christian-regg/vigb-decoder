@@ -13,8 +13,6 @@ exclude = [
     # Python reference decoder — visible in the GitHub repo but not part
     # of the crates.io package.
     "python-reference/",
-    # Extra docs not needed for the crate itself.
-    "docs/superpowers/",
 ]
 
 [lib]
