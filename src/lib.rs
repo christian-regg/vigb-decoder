@@ -22,9 +22,11 @@ mod ccitt;
 mod chunks;
 mod decoder;
 mod dispatch;
+mod pdf;
 mod preview;
 
 pub use decoder::{DecodeStats, Page, Preview};
+pub use pdf::{write_pdf, write_pdf_bytes, PdfOptions};
 
 /// Decode all image chunks in a `.max` byte buffer.
 ///
