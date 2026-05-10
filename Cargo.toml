@@ -9,6 +9,13 @@ description = "Decoder for PaperPort 2 .max (ViGBe) image scans (1986–87 era)"
 keywords = ["paperport", "max", "ccitt", "decoder", "retro"]
 categories = ["multimedia::images", "command-line-utilities"]
 readme = "README.md"
+exclude = [
+    # Python reference decoder — visible in the GitHub repo but not part
+    # of the crates.io package.
+    "python-reference/",
+    # Extra docs not needed for the crate itself.
+    "docs/superpowers/",
+]
 
 [lib]
 name = "vigb_decoder"
