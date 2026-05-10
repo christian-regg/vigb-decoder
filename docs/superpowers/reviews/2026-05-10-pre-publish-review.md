@@ -163,7 +163,13 @@ pos = pos.checked_add(1 + line_bytes).unwrap_or(n);
 
 ## Medium
 
-### SEC-M01 — Zero-progress dispatcher loop  ⬜
+### SEC-M01 — Zero-progress dispatcher loop  ✅
+
+**Resolved 2026-05-10** (commit pending) — **investigated and found to be already mitigated**. The security review's analysis of this finding contained an error: it claimed `pos += 0` on a zero-bit FAIL with no other advance, but the dispatcher does `pos += 1` for the marker consume *before* calling `decomp_line`. Net advance per type-2 iteration is `1 + consumed_bytes`, which is always ≥1. Combined with the same `pos += 1` lower-bound on every other dispatch arm (type 0 stray / raw-copy / skip; type 1 suppress; type 3 BLANK), the dispatcher loop is bounded at `O(chunk_length)` iterations.
+
+To prevent future regressions, added (a) a **forward-progress-invariant comment** at the top of the main decode loop documenting which arm advances `pos` by what minimum, and (b) a regression test `zero_consume_type2_fails_terminate_in_bounded_time` that constructs a 16 KiB chunk filled with `0x80 0x00` pairs (each pair: type-2 marker + bytes whose top-7 prefix has no TAB7 match — `0b0000000`) and asserts decode completes in under 5 seconds. If a future change accidentally drops the marker `pos += 1`, the test catches it.
+
+No production code change needed beyond the comment.
 
 **Source:** Security M3
 **Files:** `src/dispatch.rs` (after the type-2 arm, around line 195-205)

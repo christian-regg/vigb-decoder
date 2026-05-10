@@ -132,6 +132,59 @@ fn realistic_dimensions_pass_cap() {
 }
 
 #[test]
+fn zero_consume_type2_fails_terminate_in_bounded_time() {
+    // SEC-M01: the worst case for type-2 dispatch is a payload where the
+    // CCITT inner decoder fails immediately (consumed_bits = 0). Top-7 bits
+    // = 0b0000000 (i.e., bytes 0x00 or 0x01) have no TAB7 match in this
+    // implementation — `peek(7)` returns None, the inner decoder returns a
+    // zero-bit FAIL.
+    //
+    // The forward-progress invariant documented in `decode_image_chunk`
+    // guarantees that even in this case `pos` advances by at least 1 byte
+    // per loop iteration (the marker consume). The total work is therefore
+    // bounded at O(chunk_length).
+    //
+    // This test constructs a ~16 KB chunk filled with `0x80 0x00` pairs
+    // (each pair: type-2 marker + bytes that fail TAB7) and verifies the
+    // call returns instead of hanging. We use a generous time budget — if
+    // forward progress regresses, this test would hang the whole test
+    // binary, not merely fail.
+    use std::time::Instant;
+
+    let chunk_off = 0x90usize;
+    let chunk_len = 0x4000usize; // 16 KiB chunk
+    let total_len = chunk_off + chunk_len + 0x10;
+    let mut data = vec![0u8; total_len];
+    data[..5].copy_from_slice(b"ViGBe");
+    data[chunk_off] = b'D';
+    data[chunk_off + 1] = b'L';
+    data[chunk_off + 2..chunk_off + 6].copy_from_slice(&(chunk_len as u32).to_le_bytes());
+    data[chunk_off + 6..chunk_off + 10].copy_from_slice(&0x0001_4000u32.to_le_bytes());
+    // Width = 8, height = chunk_len so the dispatcher tries to fill many
+    // rows. Stays well under the megapixel cap (8 * 16384 = 131k pixels).
+    data[chunk_off + 0x26..chunk_off + 0x28].copy_from_slice(&8u16.to_le_bytes());
+    data[chunk_off + 0x28..chunk_off + 0x2a]
+        .copy_from_slice(&(chunk_len as u16).to_le_bytes());
+    // Body at chunk_off + 0x42: alternate 0x80 (type-2 marker) and 0x00
+    // (bytes whose top-7 prefix is 0b0000000 = no TAB7 match).
+    let body_start = chunk_off + 0x42;
+    let body_end = chunk_off + chunk_len;
+    for (i, off) in (body_start..body_end).enumerate() {
+        data[off] = if i % 2 == 0 { 0x80 } else { 0x00 };
+    }
+
+    let start = Instant::now();
+    let _ = decode_max(&data, &Config::default());
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed.as_secs() < 5,
+        "decode_max took {:?} on zero-consume FAIL pattern; \
+         forward-progress invariant may have regressed",
+        elapsed
+    );
+}
+
+#[test]
 fn pathological_preview_dimensions_skip_preview_no_panic() {
     // Construct a chunk with a tiny image but pathological preview
     // dimensions. The preview decoder bails (returns None) instead of

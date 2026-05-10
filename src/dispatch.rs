@@ -135,6 +135,18 @@ pub(crate) fn decode_image_chunk(
         if cfg.fail_resync_budget == 0 { u32::MAX } else { cfg.fail_resync_budget };
 
     // ── Main decode loop ─────────────────────────────────────────────────────
+    //
+    // Forward-progress invariant (SEC-M01): every dispatch arm below
+    // advances `pos` by at least 1 byte before `continue`/loop-end:
+    //   - type 0 (strict): `pos += 1` (stray marker)
+    //   - type 0 (raw-copy / skip-line): `pos += 1 + line_bytes`
+    //   - type 1: `pos += 1` (suppressed) or `pos = p` where `p > pos`
+    //   - type 2: `pos += 1` (marker consume) THEN `pos += consumed_bytes`
+    //             — even on a zero-bit FAIL the marker consume guarantees
+    //             ≥1 byte of progress.
+    //   - type 3: `pos += 1`
+    // Therefore the loop runs in O(chunk_length) iterations and cannot
+    // be exploited for unbounded amplification by a malicious bitstream.
     while y < height && pos < n {
         let marker = data[pos];
         let typ = marker >> 6;
