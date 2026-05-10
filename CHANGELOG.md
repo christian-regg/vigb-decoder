@@ -44,8 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - First public release.
 - Library crate `vigb_decoder` with `decode_max`, `decode_max_file`,
   `write_pdf`, `Config`, `Page`, `MaxError`.
-- `max2pdf` binary with full CLI flag parity vs the Python reference
-  decoder (canonical fixes ON by default, diagnostic flags opt-in).
+- `vigb-max2pdf` binary with full CLI flag parity vs the Python
+  reference decoder (canonical fixes ON by default, diagnostic flags
+  opt-in).
 - Per-line CCITT-T.6 decoder with the bug4 canonical reference-table
   walk and lazy-bit-loading toggle.
 - Preview thumbnail decoder (102×146 RLE → upscaled 1-bit).
@@ -56,7 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TIFF 6.0 (Aldus, 1992) — clean-room from public standards.
 - Local-only corpus regression test (`cargo test --features corpus`)
   that pixel-compares the Rust decoder's output against reference
-  PDFs produced by the Python `max2pdf.py` over a private archive.
+  PDFs produced by `python-reference/vigb_max2pdf.py` over a private
+  archive.
 
 ### Verified
 - Pixel-identical to the Python reference on the canonical 4-page

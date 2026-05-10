@@ -242,7 +242,7 @@ keep whichever version looks better.
 **CLI flags.**
 
 ```
-max2pdf bad.max --fail-resync-max 4 --reset-ref-after-drift --fail-resync-min-confidence 2
+vigb-max2pdf bad.max --fail-resync-max 4 --reset-ref-after-drift --fail-resync-min-confidence 2
 ```
 
 | Flag | Default | Effect |
@@ -298,11 +298,12 @@ Findings from the disassembly:
 
 Each image chunk contains a 102×146 grayscale preview at the end, RLE-
 compressed with a different dispatch from the main image stream. The
-decoder includes the preview as an extra PDF page by default. This provides
-document-layout visibility even when the main CCITT decode fails.
+preview is **off by default** since the canonical decoder is bit-perfect
+on the corpus; enable with `--preview` to append it as an extra PDF page
+per source page. Useful for recovering layout when the main CCITT decode
+fails (hand-drawn content, stamps).
 
-Disable with `--no-preview`. See [format.md](format.md) for the preview
-RLE specification.
+See [format.md](format.md) for the preview RLE specification.
 
 ## See also
 
