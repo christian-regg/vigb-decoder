@@ -24,12 +24,12 @@ jobs:
         with: { targets: ${{ matrix.target }} }
       - uses: Swatinem/rust-cache@v2
       - name: build
-        run: cargo build --release --target ${{ matrix.target }} --bin max2pdf
+        run: cargo build --release --target ${{ matrix.target }} --bin vigb-max2pdf
       - name: rename binary
         shell: bash
         run: |
-          src=target/${{ matrix.target }}/release/max2pdf${{ matrix.ext }}
-          dst=max2pdf-${{ github.ref_name }}-${{ matrix.target }}${{ matrix.ext }}
+          src=target/${{ matrix.target }}/release/vigb-max2pdf${{ matrix.ext }}
+          dst=vigb-max2pdf-${{ github.ref_name }}-${{ matrix.target }}${{ matrix.ext }}
           cp "$src" "$dst"
           echo "ASSET=$dst" >> $GITHUB_ENV
       - uses: softprops/action-gh-release@v2

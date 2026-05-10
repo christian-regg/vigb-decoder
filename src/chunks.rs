@@ -56,7 +56,7 @@ pub(crate) fn read_u16_at(data: &[u8], chunk: ChunkRef, off: usize) -> Option<u1
     Some(u16::from_le_bytes([bytes[0], bytes[1]]))
 }
 
-/// Scan `data` for image chunks. Mirrors `max2pdf.py:find_image_chunks`.
+/// Scan `data` for image chunks. Mirrors `python-reference/max2pdf.py:find_image_chunks`.
 ///
 /// Returned chunks satisfy two invariants:
 ///

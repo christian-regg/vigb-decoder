@@ -1,5 +1,5 @@
 //! Per-line marker dispatcher for an image chunk. Direct port of
-//! `max2pdf.py:decode_image_chunk` lines 437-808.
+//! `python-reference/max2pdf.py:decode_image_chunk` lines 437-808.
 //!
 //! Task 10 adds every heuristic flag branch. The canonical defaults
 //! (bug4=true, strict_t0=true, drop_blank_after_drift=true,

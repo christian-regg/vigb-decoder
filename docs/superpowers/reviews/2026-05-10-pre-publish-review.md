@@ -429,7 +429,20 @@ Once the megapixel cap is in place, add to README: "A `.max` file of N bytes can
 
 ## Legal
 
-### LEGAL-S01 — `max2pdf` binary name collides with GPL `orangeturtle739/max2pdf`  ⬜
+### LEGAL-S01 — `max2pdf` binary name collides with GPL `orangeturtle739/max2pdf`  ✅
+
+**Resolved 2026-05-10** (commit pending). Renamed binary `max2pdf` → `vigb-max2pdf`:
+- `Cargo.toml` `[[bin]]` name + path
+- `src/bin/max2pdf.rs` → `src/bin/vigb-max2pdf.rs` (via `git mv` to preserve history)
+- `#[command(name = ...)]` and module doc-comment in the renamed file
+- README install snippet ("the `vigb-max2pdf` binary") + 3 usage examples
+- `docs/cli.md` heading + 5 example commands
+- `.github/workflows/release.yml` build + artifact rename steps
+- Verified: `cargo run --bin vigb-max2pdf -- --version` outputs `vigb-max2pdf 0.1.0`
+
+Also disambiguated cross-reference comments so readers can't confuse the in-repo Python sibling with the GPL `orangeturtle739/max2pdf` project: `max2pdf.py:` → `python-reference/max2pdf.py:` across `src/decoder.rs`, `src/preview.rs`, `src/chunks.rs`, `src/pdf.rs`, `src/dispatch.rs`, `src/config.rs`, `src/ccitt.rs`, `tests/common/encoder.rs`, `tools/encode-fixture/main.rs`, `tests/corpus.rs`. The `ccitt.rs` provenance note was further clarified to spell out "not the GPL `paperman` or `orangeturtle739/max2pdf` projects" rather than the bare "not max2pdf".
+
+`python-reference/max2pdf.py` itself was NOT renamed — kept the .py name to avoid breaking existing Python users; the path prefix in cross-references provides the disambiguation.
 
 **Source:** Legal S-1
 **Files:** `Cargo.toml:25`, `src/bin/max2pdf.rs:11`, `README.md` install snippet, `docs/cli.md`, every `src/*.rs` cross-reference comment

@@ -1,8 +1,9 @@
 # CLI flag reference
 
-This table maps every `max2pdf` Rust CLI flag to the equivalent flag
-in the Python reference decoder (`max2pdf.py`). Long names match
-exactly so muscle memory transfers.
+This table maps every `vigb-max2pdf` Rust CLI flag to the equivalent
+flag in the Python reference decoder
+([`python-reference/max2pdf.py`](../python-reference/max2pdf.py)).
+Long names match exactly so muscle memory transfers.
 
 | Rust flag | Default | What it does |
 |---|---|---|
@@ -33,17 +34,17 @@ stats internally but doesn't have a corresponding CLI flag.
 
 Convert one file with default settings:
 
-    max2pdf scan.max
+    vigb-max2pdf scan.max
 
 Convert several files into a directory, with stats:
 
-    max2pdf -o out/ --stats *.max
+    vigb-max2pdf -o out/ --stats *.max
 
 Diagnose a problematic file (turn off canonical fixes one at a time):
 
-    max2pdf bad.max --no-bug4
-    max2pdf bad.max --no-strict-t0
+    vigb-max2pdf bad.max --no-bug4
+    vigb-max2pdf bad.max --no-strict-t0
 
 Try smart resync on a file with FAIL events:
 
-    max2pdf bad.max --fail-resync-max 4 --reset-ref-after-drift --fail-resync-min-confidence 2
+    vigb-max2pdf bad.max --fail-resync-max 4 --reset-ref-after-drift --fail-resync-min-confidence 2

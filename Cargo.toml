@@ -22,8 +22,8 @@ name = "vigb_decoder"
 path = "src/lib.rs"
 
 [[bin]]
-name = "max2pdf"
-path = "src/bin/max2pdf.rs"
+name = "vigb-max2pdf"
+path = "src/bin/vigb-max2pdf.rs"
 
 [[bin]]
 name = "encode-fixture"

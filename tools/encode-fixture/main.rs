@@ -2,7 +2,7 @@
 //! tests/fixtures/synthetic.pbm from a 200×100 programmatic bitmap.
 //!
 //! Validate by running the Python decoder afterwards:
-//!   python "C:\Users\chris\Desktop\Alte Scans\max2pdf.py" tests/fixtures/synthetic.max -o tests/fixtures/
+//!   python python-reference/max2pdf.py tests/fixtures/synthetic.max -o tests/fixtures/
 
 #[path = "../../tests/common/encoder.rs"]
 mod encoder;

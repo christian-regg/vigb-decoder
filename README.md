@@ -23,7 +23,7 @@ not support this format.
 
     cargo install vigb-decoder
 
-This installs the `max2pdf` binary in `~/.cargo/bin/`.
+This installs the `vigb-max2pdf` binary in `~/.cargo/bin/`.
 
 Pre-built binaries for Linux x86_64, Windows x86_64, and macOS aarch64
 are attached to each [release](https://github.com/creggch/vigb-decoder/releases).
@@ -32,15 +32,15 @@ are attached to each [release](https://github.com/creggch/vigb-decoder/releases)
 
 Convert a single file:
 
-    max2pdf scan.max
+    vigb-max2pdf scan.max
 
 Convert a batch into a directory:
 
-    max2pdf -o out/ *.max
+    vigb-max2pdf -o out/ *.max
 
 Print per-file decode stats:
 
-    max2pdf --stats scan.max
+    vigb-max2pdf --stats scan.max
 
 See [`docs/cli.md`](docs/cli.md) for the full flag list.
 

@@ -1,5 +1,5 @@
 //! Hand-written PDF writer. No PDF crate dependency.
-//! Mirrors `max2pdf.py:write_pdf` (lines 992-1057).
+//! Mirrors `python-reference/max2pdf.py:write_pdf` (lines 992-1057).
 
 use std::io::Write;
 use std::path::Path;

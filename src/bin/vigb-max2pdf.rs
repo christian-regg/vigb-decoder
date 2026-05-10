@@ -1,4 +1,4 @@
-//! `max2pdf` — convert PaperPort 2 (.max) files to PDF.
+//! `vigb-max2pdf` — convert PaperPort 2 (.max) files to PDF.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -8,7 +8,7 @@ use clap::{ArgAction, Parser, ValueEnum};
 use vigb_decoder::{decode_max_file, write_pdf, Config, DispatchKind, T0DropMode};
 
 #[derive(Debug, Parser)]
-#[command(name = "max2pdf", version, about = "Convert PaperPort 2 (.max) files to PDF")]
+#[command(name = "vigb-max2pdf", version, about = "Convert PaperPort 2 (.max) files to PDF")]
 struct Cli {
     /// One or more .max files
     #[arg(required = true)]

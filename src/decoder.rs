@@ -1,4 +1,4 @@
-//! Per-line CCITT-T.6 decoder. Direct port of `max2pdf.py:_decomp_line`.
+//! Per-line CCITT-T.6 decoder. Direct port of `python-reference/max2pdf.py:_decomp_line`.
 
 use crate::bitstream::BitCursor;
 use crate::ccitt::{DispatchEntry, BLACK_TABLE, DISPATCH, TAB7, WHITE_TABLE};
@@ -230,7 +230,7 @@ fn fail_table(width: i32, bc: &BitCursor<'_>, start_pos: usize) -> (Vec<i32>, i6
 
 /// Convert a changing-elements table to a packed 1-bit MSB-first row.
 ///
-/// Mirrors `max2pdf.py:_table_to_row` (line 332). `row_bytes` is the
+/// Mirrors `python-reference/max2pdf.py:_table_to_row` (line 332). `row_bytes` is the
 /// padded byte width of the output row.
 ///
 /// The table format is `[-1, x0, x1, x2, ..., width, width]` where
@@ -280,7 +280,7 @@ pub(crate) fn table_to_row(table: &[i32], width: i32, row_bytes: usize) -> Vec<u
 }
 
 /// Build a changing-elements table from a packed 1-bit MSB-first row
-/// (1 = black). Mirrors `max2pdf.py:_table_from_raw` (line 360).
+/// (1 = black). Mirrors `python-reference/max2pdf.py:_table_from_raw` (line 360).
 pub(crate) fn table_from_raw(row: &[u8], width: i32) -> Vec<i32> {
     let mut out: Vec<i32> = vec![-1];
     let mut colour: u32 = 0;
@@ -303,7 +303,7 @@ pub(crate) fn table_from_raw(row: &[u8], width: i32) -> Vec<i32> {
 /// type-2 OK decodes and `n_drift` counts FAIL / V0 / BAD / T1 / type-0
 /// events. Self-contained: writes no output, modifies no external state.
 ///
-/// Mirrors `max2pdf.py:_resync_probe` (line 383). Used only by
+/// Mirrors `python-reference/max2pdf.py:_resync_probe` (line 383). Used only by
 /// `dispatch::decode_image_chunk` when `cfg.fail_resync_max > 0`.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn resync_probe(

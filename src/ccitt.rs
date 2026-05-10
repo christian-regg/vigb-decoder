@@ -28,10 +28,11 @@
 //!
 //! # Cross-check note
 //!
-//! The values below match max2pdf.py's tables (also derived from the same
+//! The values below match `python-reference/max2pdf.py`'s tables (also derived from the same
 //! ITU standard). That agreement is expected — both implementations
 //! transcribe from the same public specification. The provenance of THIS
-//! file's values is the ITU/TIFF sources cited above, not max2pdf.
+//! file's values is the ITU/TIFF sources cited above, not the GPL
+//! `paperman` or `orangeturtle739/max2pdf` projects.
 
 /// Two-dimensional code dispatch entries (V(-3)..V(+3), H, P).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
