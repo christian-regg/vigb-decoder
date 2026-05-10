@@ -3,6 +3,68 @@
 use crate::bitstream::BitCursor;
 use crate::ccitt::{DispatchEntry, BLACK_TABLE, DISPATCH, TAB7, WHITE_TABLE};
 
+/// A single decoded page.
+#[derive(Debug, Clone)]
+pub struct Page {
+    /// Image width in pixels (significant pixels per row).
+    pub width: u32,
+    /// Image height in pixels.
+    pub height: u32,
+    /// Horizontal DPI from the file (default 300 if unset).
+    pub dpi_x: u32,
+    /// Vertical DPI from the file (default 300 if unset).
+    pub dpi_y: u32,
+    /// Bytes per row in `bitmap` (padded to a 4-byte multiple).
+    pub row_bytes: u32,
+    /// Raw 1-bit packed bitmap, MSB-first per byte.
+    /// **Bit value 1 means BLACK.** Length = `row_bytes * height`.
+    pub bitmap: Vec<u8>,
+    /// Optional embedded preview thumbnail (populated when
+    /// `Config::embed_preview` is true and the chunk has one).
+    pub preview: Option<Preview>,
+    /// Per-page decoder statistics.
+    pub stats: DecodeStats,
+}
+
+/// Embedded preview thumbnail, decoded and (optionally) upscaled to
+/// match the main image's pixel dimensions.
+#[derive(Debug, Clone)]
+pub struct Preview {
+    /// Preview width in pixels.
+    pub width: u32,
+    /// Preview height in pixels.
+    pub height: u32,
+    /// Bytes per row.
+    pub row_bytes: u32,
+    /// 1-bit packed, MSB-first, bit=1 means BLACK.
+    pub bitmap: Vec<u8>,
+}
+
+/// Per-page decoder statistics. Soft-error counters live here, not in `MaxError`.
+#[derive(Debug, Default, Clone)]
+pub struct DecodeStats {
+    /// Number of type-2 lines that decoded successfully.
+    pub n_ok: u32,
+    /// Number of V(0)-only-decode lines (rare).
+    pub n_v0: u32,
+    /// Number of type-0 markers consumed (raw, skip, or stray).
+    pub n_t0: u32,
+    /// Number of type-1 markers consumed.
+    pub n_t1: u32,
+    /// Number of type-2 lines that FAILed mid-decode.
+    pub n_fail: u32,
+    /// Longest consecutive FAIL run seen on this page.
+    pub max_consecutive_fail: u32,
+    /// y of the first FAIL on the page, if any.
+    pub first_fail_y: Option<u32>,
+    /// Smart-resync probes attempted (always 0 in Task 9; populated in Task 10).
+    pub resync_probes: u32,
+    /// Smart-resync probes that produced a usable offset (always 0 in Task 9).
+    pub resync_hits: u32,
+    /// Type-3 blank-line markers dropped after drift.
+    pub blank_drops_after_drift: u32,
+}
+
 /// Decode one CCITT-T.6 line starting at byte boundary `start_pos`.
 ///
 /// Returns `(changing_elements_table, bits_consumed)`. On any decode
@@ -14,7 +76,6 @@ use crate::ccitt::{DispatchEntry, BLACK_TABLE, DISPATCH, TAB7, WHITE_TABLE};
 /// - `bug4 = true` ⇒ canonical reference-table walk (default; produces
 ///   IoU=1.000 on the corpus). `false` reproduces the pre-12th-session
 ///   `tp_idx -= 1 + scan-forward` behaviour for diagnostic comparison.
-#[allow(dead_code)]
 pub(crate) fn decomp_line(
     data: &[u8],
     start_pos: usize,
@@ -175,7 +236,6 @@ fn fail_table(width: i32, bc: &BitCursor<'_>, start_pos: usize) -> (Vec<i32>, i6
 /// The table format is `[-1, x0, x1, x2, ..., width, width]` where
 /// each pair `(x[2k], x[2k+1])` for k ≥ 0 is a black run [x[2k], x[2k+1]).
 /// Entries start at index 1 (skipping the leading -1 sentinel).
-#[allow(dead_code)]
 pub(crate) fn table_to_row(table: &[i32], width: i32, row_bytes: usize) -> Vec<u8> {
     let mut out = vec![0u8; row_bytes];
     let mut i = 1usize;
@@ -221,7 +281,6 @@ pub(crate) fn table_to_row(table: &[i32], width: i32, row_bytes: usize) -> Vec<u
 
 /// Build a changing-elements table from a packed 1-bit MSB-first row
 /// (1 = black). Mirrors `max2pdf.py:_table_from_raw` (line 360).
-#[allow(dead_code)]
 pub(crate) fn table_from_raw(row: &[u8], width: i32) -> Vec<i32> {
     let mut out: Vec<i32> = vec![-1];
     let mut colour: u32 = 0;

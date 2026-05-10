@@ -25,7 +25,7 @@ use std::path::Path;
 /// while the canonical ViGBe decoder uses x=0 (initial colour=white).
 /// A row starting with a black pixel at x=0 causes a 1-pixel decode shift.
 fn build_synthetic_bitmap(width: usize, height: usize) -> Vec<u8> {
-    let row_bytes = (width + 7) / 8;
+    let row_bytes = width.div_ceil(8);
     let mut bits = vec![0u8; row_bytes * height];
 
     let mut set = |x: usize, y: usize| {
@@ -111,7 +111,7 @@ fn write_pbm_p4(path: &Path, width: usize, height: usize, bits: &[u8]) -> std::i
 ///   +0x3E..0x42  zero-fill
 ///   +0x42..end   CCITT line stream
 fn encode_synthetic_max(bits: &[u8], width: u32, height: u32) -> Vec<u8> {
-    let src_row_bytes = ((width + 7) / 8) as usize;
+    let src_row_bytes = width.div_ceil(8) as usize;
 
     // Build the per-line CCITT stream.
     let mut line_stream: Vec<u8> = Vec::new();
@@ -121,7 +121,7 @@ fn encode_synthetic_max(bits: &[u8], width: u32, height: u32) -> Vec<u8> {
         let mut v = vec![-1i32];
         // Need at least width+2 entries beyond the sentinel so that
         // get(prev, b_idx) never panics — use width+16 copies.
-        v.extend(std::iter::repeat(width as i32).take(width as usize + 16));
+        v.extend(std::iter::repeat_n(width as i32, width as usize + 16));
         v
     };
 
@@ -159,7 +159,7 @@ fn encode_synthetic_max(bits: &[u8], width: u32, height: u32) -> Vec<u8> {
     let mut out: Vec<u8> = Vec::new();
     out.extend_from_slice(b"ViGBe");
     // Pad to chunk start at file offset 0x40.
-    out.extend(std::iter::repeat(0u8).take(0x40 - 5));
+    out.extend(std::iter::repeat_n(0u8, 0x40 - 5));
     out.extend_from_slice(&chunk);
     out.extend_from_slice(&line_stream);
     out

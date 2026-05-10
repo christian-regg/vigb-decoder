@@ -244,7 +244,7 @@ impl BitWriter {
 
     /// Write `length` bits from `code` (MSB-first, left-aligned in code).
     pub fn write(&mut self, code: u32, length: u32) {
-        debug_assert!(length >= 1 && length <= 16, "length {length} out of range 1..=16");
+        debug_assert!((1..=16).contains(&length), "length {length} out of range 1..=16");
         self.bit_buf = (self.bit_buf << length) | (code as u64 & ((1u64 << length) - 1));
         self.bits_in_buf += length;
         while self.bits_in_buf >= 8 {
