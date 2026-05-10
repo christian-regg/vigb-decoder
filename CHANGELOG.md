@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking (pre-1.0):** preview-thumbnail embedding is now off by
+  default. The 102×146 grayscale preview was historically appended as
+  an extra PDF page per source page so users still got *something* when
+  the main CCITT decode failed; with the canonical decoder now bit-perfect
+  on the corpus the preview is a redundant low-res duplicate. Pass
+  `--preview` (Rust binary or Python sibling) to opt back in.
+  `Config::default().embed_preview` is now `false`; the CLI flag flipped
+  from `--no-preview` (opt-out) to `--preview` (opt-in).
+- Renamed Rust binary `max2pdf` → `vigb-max2pdf` and Python sibling
+  `python-reference/max2pdf.py` → `python-reference/vigb_max2pdf.py` to
+  disambiguate from the unrelated GPL `orangeturtle739/max2pdf` project
+  (LEGAL-S01).
+
+### Security
+- Reject image chunks shorter than `IMAGE_CHUNK_MIN_LEN` (`0x42`) at
+  discovery time and bail safely from preview decoding when
+  `preview_size > chunk_length` would otherwise underflow (CRIT-01,
+  SEC-H01).
+- Cap `width × height` at `MAX_IMAGE_PIXELS` (200 MP) and
+  `padded_x × preview_y` at `MAX_PREVIEW_PIXELS` (16 MP); use
+  `checked_mul` on the bitmap byte-count for 32-bit safety. Returns
+  new `MaxError::ImageTooLarge` instead of allocating ~537 MB / ~4 GB
+  from a 64-byte malicious header (CRIT-02, SEC-H02).
+- Clamp `Config::fail_resync_max`, `fail_resync_lookahead`, and
+  `fail_resync_budget` at use site to safe upper bounds. Pre-cap a
+  pathological config could drive ~16 quintillion CCITT decode calls
+  per FAIL event (SEC-M02). `fail_resync_budget == 0` semantics
+  changed from "unlimited" to "use cap" (= 1024) — harmless for
+  real workloads.
+
 ## [0.1.0] — 2026-05-10
 
 ### Added

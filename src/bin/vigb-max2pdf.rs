@@ -22,11 +22,15 @@ struct Cli {
     #[arg(long)]
     stats: bool,
 
-    // --- Canonical fixes (default ON) ---
-    /// Skip embedding the preview thumbnail page
-    #[arg(long = "no-preview", action = ArgAction::SetTrue)]
-    no_preview: bool,
+    /// Append the embedded 102×146 grayscale preview thumbnail as an
+    /// extra PDF page per source page. Off by default — useful for
+    /// recovering layout when the main CCITT decode fails (hand-drawn
+    /// content, stamps, etc.). On bit-perfect canonical decodes the
+    /// preview is a redundant low-res duplicate.
+    #[arg(long, action = ArgAction::SetTrue)]
+    preview: bool,
 
+    // --- Canonical fixes (default ON) ---
     /// Disable the canonical reference-table walk fix (diagnostic)
     #[arg(long = "no-bug4", action = ArgAction::SetTrue)]
     no_bug4: bool,
@@ -130,8 +134,10 @@ fn parse_dispatch_kinds(s: &str) -> Result<Vec<DispatchKind>, String> {
 fn build_config(cli: &Cli) -> Result<Config, String> {
     let mut cfg = Config::builder();
 
+    // Recovery feature (default OFF, --preview to enable)
+    cfg = cfg.embed_preview(cli.preview);
+
     // Canonical fixes (default ON, --no-* to disable)
-    cfg = cfg.embed_preview(!cli.no_preview);
     cfg = cfg.bug4(!cli.no_bug4);
     cfg = cfg.strict_t0(!cli.no_strict_t0);
     cfg = cfg.drop_blank_after_drift(!cli.keep_drift_blanks);

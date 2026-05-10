@@ -64,7 +64,10 @@ pub struct Config {
     /// ViGBe corpus). Default true.
     pub suppress_t1_all: bool,
     /// Embed the 102×146 grayscale preview thumbnail as a second PDF
-    /// page per scanned page. Default true.
+    /// page per scanned page. Default **false**. Set true to recover
+    /// chunk-encoded layout (hand-drawn content, stamps, regions where
+    /// the CCITT path fails to decode) at the cost of one extra
+    /// upscaled-thumbnail page per source page in the output.
     pub embed_preview: bool,
 
     // --- Experimental / diagnostic (default OFF) ---
@@ -101,7 +104,7 @@ impl Default for Config {
             strict_t0: true,
             drop_blank_after_drift: true,
             suppress_t1_all: true,
-            embed_preview: true,
+            embed_preview: false,
             lazy_bit_loading: false,
             t0_reset: false,
             t0_drop_after_drift: T0DropMode::None,
@@ -171,7 +174,9 @@ mod tests {
         assert!(c.strict_t0);
         assert!(c.drop_blank_after_drift);
         assert!(c.suppress_t1_all);
-        assert!(c.embed_preview);
+        // Recovery features: OFF (preview was on by default in 0.0.x when
+        // the main image often failed; main image is bit-perfect now).
+        assert!(!c.embed_preview);
         // Diagnostic / experimental flags: OFF
         assert!(!c.lazy_bit_loading);
         assert!(!c.t0_reset);

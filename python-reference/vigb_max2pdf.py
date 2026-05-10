@@ -912,7 +912,7 @@ def decode_preview_chunk(data, chunk_start, chunk_length, scale_to_a4=True):
 
 
 def parse_max(path, t0_reset=False, t0_drop_after_drift='', t0_drop_kinds=None,
-              include_preview=True, drop_blank_after_drift=True,
+              include_preview=False, drop_blank_after_drift=True,
               suppress_t1_all=True, fail_scan_forward_max=0,
               suppress_t2_fail_y_in_cascade=False,
               fail_resync_max=0, fail_resync_lookahead=5,
@@ -1088,9 +1088,11 @@ def main(argv=None):
                     help='After any drift dispatch (FAIL/V0/BAD), reset '
                          'the CCITT reference table to all-white. Pairs '
                          'with --fail-resync-max for best effect.')
-    ap.add_argument('--no-preview', action='store_true',
-                    help='do NOT include the embedded preview thumbnail as an extra '
-                         'page in the output PDF')
+    ap.add_argument('--preview', action='store_true',
+                    help='append the embedded 102x146 preview thumbnail as an '
+                         'extra page per source page (off by default; useful '
+                         'for recovering layout when the main CCITT decode '
+                         'fails on hand-drawn content or stamps)')
     ap.add_argument('--keep-drift-blanks', action='store_true',
                     help='disable the 6th-session drop-blank-after-drift heuristic '
                          '(restores pre-fix behaviour: 1490+ rows of false BLANK '
@@ -1137,7 +1139,7 @@ def main(argv=None):
             pages = parse_max(path, t0_reset=args.t0_reset,
                               t0_drop_after_drift=args.t0_drop_after_drift,
                               t0_drop_kinds=t0_kinds,
-                              include_preview=not args.no_preview,
+                              include_preview=args.preview,
                               drop_blank_after_drift=not args.keep_drift_blanks,
                               suppress_t1_all=not args.keep_t1_dispatches,
                               fail_scan_forward_max=args.fail_scan_forward,

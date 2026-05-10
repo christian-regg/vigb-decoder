@@ -10,7 +10,7 @@ Long names match exactly so muscle memory transfers.
 | `<inputs>` (positional) | (required) | One or more `.max` files |
 | `-o`, `--output-dir` | (alongside input) | Write PDFs into this directory |
 | `--stats` | off | Print per-file decode statistics |
-| `--no-preview` | off | Skip embedding the preview thumbnail page |
+| `--preview` | off | Append the embedded 102×146 preview thumbnail as an extra PDF page per source page (off by default — useful for recovering layout when the main CCITT decode fails on hand-drawn content or stamps) |
 | `--no-bug4` | off | Disable canonical reference-table walk fix |
 | `--no-strict-t0` | off | Disable strict type-0 marker gate |
 | `--lazy-bit-loading` | off | Use byte-by-byte bit refill (diagnostic) |

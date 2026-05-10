@@ -42,6 +42,14 @@ Print per-file decode stats:
 
     vigb-max2pdf --stats scan.max
 
+Each `.max` page also has an embedded 102×146 grayscale preview
+thumbnail. By default the converter ignores it (the main bit-perfect
+image is what you want). Pass `--preview` to append the thumbnail as
+an extra PDF page per source page — useful as a fallback when the
+main decode fails on hand-drawn content or stamps:
+
+    vigb-max2pdf --preview scan.max
+
 See [`docs/cli.md`](docs/cli.md) for the full flag list.
 
 ## Pure-Python alternative
