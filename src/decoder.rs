@@ -296,6 +296,99 @@ pub(crate) fn table_from_raw(row: &[u8], width: i32) -> Vec<i32> {
     out
 }
 
+/// Lookahead probe used by `fail_resync_max`.
+///
+/// Walks the dispatcher for up to `n_steps` lines from `start_pos`
+/// against `table_prev`. Returns `(n_ok, n_drift)` where `n_ok` counts
+/// type-2 OK decodes and `n_drift` counts FAIL / V0 / BAD / T1 / type-0
+/// events. Self-contained: writes no output, modifies no external state.
+///
+/// Mirrors `max2pdf.py:_resync_probe` (line 383). Used only by
+/// `dispatch::decode_image_chunk` when `cfg.fail_resync_max > 0`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn resync_probe(
+    data: &[u8],
+    start_pos: usize,
+    table_prev: &[i32],
+    width: i32,
+    line_bytes: usize,
+    n_steps: u32,
+    bug4: bool,
+    lazy: bool,
+) -> (u32, u32) {
+    let mut pos = start_pos;
+    let mut local_ref: Vec<i32> = table_prev.to_vec();
+    let mut n_ok = 0u32;
+    let mut n_drift = 0u32;
+    let n = data.len();
+    for _ in 0..n_steps {
+        if pos >= n {
+            break;
+        }
+        let marker = data[pos];
+        let typ = marker >> 6;
+        let low6 = (marker & 0x3F) as u32;
+        match typ {
+            0 => {
+                // Python probe treats all type-0 as drift (no strict_t0
+                // refinement needed — it just wants a rough score).
+                if low6 == 1 || low6 == 3 {
+                    // valid type-0: skip marker + payload
+                    pos = pos.saturating_add(1 + line_bytes);
+                } else {
+                    pos += 1;
+                }
+                n_drift += 1;
+            }
+            1 => {
+                // Suppress (treat as stray byte, same as ship default).
+                pos += 1;
+                // do not count step — mirrors Python `continue`
+            }
+            2 => {
+                pos += 1;
+                let (table, consumed_bits) =
+                    decomp_line(data, pos, width, &local_ref, lazy, bug4);
+                let consumed_bytes = ((consumed_bits + 7) / 8) as usize;
+                let is_fail = table.len() == 4
+                    && table[0] == -1
+                    && table[1] == width
+                    && table[2] == width
+                    && table[3] == width;
+                let looks_v0 = is_fail && consumed_bits == 1;
+                // Compute valid_x check for BAD (mirrors Python).
+                let tail = &table[1..];
+                let x_final = if tail.len() >= 3 {
+                    Some(tail[tail.len() - 3])
+                } else {
+                    tail.last().copied()
+                };
+                let valid_x = x_final.is_none_or(|xf| xf <= width + 3);
+                let is_bad = !is_fail && !valid_x;
+                if is_fail || looks_v0 || is_bad {
+                    n_drift += 1;
+                } else {
+                    n_ok += 1;
+                    local_ref = std::iter::once(-1i32)
+                        .chain(table[1..].iter().copied())
+                        .chain(std::iter::repeat_n(width, 16))
+                        .collect();
+                }
+                pos += consumed_bytes;
+            }
+            3 => {
+                // Type-3 BLANK: reset ref to sentinel, advance one step.
+                local_ref = std::iter::once(-1i32)
+                    .chain(std::iter::repeat_n(width, width as usize + 16))
+                    .collect();
+                pos += 1;
+            }
+            _ => unreachable!(),
+        }
+    }
+    (n_ok, n_drift)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

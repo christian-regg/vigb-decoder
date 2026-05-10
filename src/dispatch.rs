@@ -1,9 +1,12 @@
 //! Per-line marker dispatcher for an image chunk. Direct port of
-//! `max2pdf.py:decode_image_chunk` lines 437-808 (canonical defaults only;
-//! Task 10 adds heuristic flag branches).
+//! `max2pdf.py:decode_image_chunk` lines 437-808.
+//!
+//! Task 10 adds every heuristic flag branch. The canonical defaults
+//! (bug4=true, strict_t0=true, drop_blank_after_drift=true,
+//! suppress_t1_all=true) still produce n_fail=0 on the synthetic fixture.
 
-use crate::config::Config;
-use crate::decoder::{decomp_line, table_from_raw, table_to_row, DecodeStats, Page};
+use crate::config::{Config, DispatchKind, T0DropMode};
+use crate::decoder::{decomp_line, resync_probe, table_from_raw, table_to_row, DecodeStats, Page};
 
 /// Build the initial all-white sentinel reference table.
 ///
@@ -15,17 +18,43 @@ fn make_sentinel(width: u32) -> Vec<i32> {
     v
 }
 
+/// Return true if `kind` is in the effective drift-kinds set.
+///
+/// Python default: `drift_kinds = {'V0', 'FAIL', 'BAD', 'T1', 'T0'}`.
+fn is_drift(kind: Option<DispatchKind>) -> bool {
+    matches!(
+        kind,
+        Some(
+            DispatchKind::V0
+                | DispatchKind::Fail
+                | DispatchKind::Bad
+                | DispatchKind::T1
+                | DispatchKind::T0
+        )
+    )
+}
+
+/// Return true if `kind` is in the effective t0-drift-kinds set.
+///
+/// When `t0_drop_kinds` is None it inherits the same default as `drift_kinds`.
+fn is_t0_drift(kind: Option<DispatchKind>, cfg: &Config) -> bool {
+    match &cfg.t0_drop_kinds {
+        None => is_drift(kind),
+        Some(set) => kind.is_some_and(|k| set.contains(&k)),
+    }
+}
+
 /// Decode one image chunk starting at `chunk_start` in `data`. Returns
-/// the rendered `Page` (preview field unset — populated separately in
-/// Task 11). `chunk_length` is the chunk's total byte length from
-/// `ChunkRef::length` and is used by Task 11's preview decoder.
+/// the rendered `Page` (preview field unset — populated by Task 11).
+/// `chunk_length` is the chunk's total byte length from `ChunkRef::length`
+/// and is used by Task 11's preview decoder.
 pub(crate) fn decode_image_chunk(
     data: &[u8],
     chunk_start: usize,
     _chunk_length: usize,
     cfg: &Config,
 ) -> Page {
-    // Read chunk header. Offsets per max2pdf.py:527-534.
+    // ── Chunk header ────────────────────────────────────────────────────────
     let read_u16 = |off: usize| {
         u16::from_le_bytes(
             data[chunk_start + off..chunk_start + off + 2]
@@ -35,7 +64,6 @@ pub(crate) fn decode_image_chunk(
     };
     let width = read_u16(0x26);
     let height = read_u16(0x28);
-    // DPI: clamp to 300 if zero (matches Python `dpi_x or 300`).
     let dpi_x = {
         let v = read_u16(0x2a);
         if v == 0 { 300 } else { v }
@@ -44,105 +72,128 @@ pub(crate) fn decode_image_chunk(
         let v = read_u16(0x2c);
         if v == 0 { 300 } else { v }
     };
-    // bpp at +0x2e — only 1-bit images supported. We assume bpp == 1
-    // for v0.1 (matching Task spec note; Task 18 can add a runtime check).
+    // bpp at +0x2e — only 1-bit images supported.
 
     let line_bytes = width.div_ceil(8) as usize;
     let row_bytes = (line_bytes + 3) & !3usize;
     let mut bitmap = vec![0u8; row_bytes * height as usize];
     let mut stats = DecodeStats::default();
 
-    // Sentinel reference table: [-1, width × (width+16)].
+    // ── Reference table ─────────────────────────────────────────────────────
+    // t0_reset is vestigial (canonical already resets to sentinel per-chunk).
+    // We document: the sentinel IS the initial state; `t0_reset` flag is a
+    // no-op because we never *not* start from sentinel.
     let sentinel = make_sentinel(width);
     let mut ref_table = sentinel.clone();
 
+    // ── Stream state ─────────────────────────────────────────────────────────
     let mut pos = chunk_start + 0x42; // CCITT line stream starts at +0x42
     let n = data.len();
     let mut y: u32 = 0;
     let mut consecutive_fail: u32 = 0;
-    // Track whether the last dispatch was a drift event (for type-3 blank
-    // drop logic). Mirrors Python's `last_kind in drift_kinds` check where
-    // drift_kinds = {'V0', 'FAIL', 'BAD', 'T1', 'T0'}.
-    let mut last_was_drift = false;
 
+    // Rich last-kind tracking (replaces bool last_was_drift from Task 9).
+    // Mirrors Python's `last_kind` variable (None | 'OK' | 'V0' | 'FAIL' |
+    // 'BAD' | 'T0' | 'T1' | 'BLANK').
+    let mut last_kind: Option<DispatchKind> = None;
+
+    // Smart-resync budget: 0 in Config means unlimited (Python: float('inf')).
+    let mut resync_budget_remaining: u32 =
+        if cfg.fail_resync_budget == 0 { u32::MAX } else { cfg.fail_resync_budget };
+
+    // ── Main decode loop ─────────────────────────────────────────────────────
     while y < height && pos < n {
         let marker = data[pos];
         let typ = marker >> 6;
         let low6 = (marker & 0x3F) as u32;
 
         match typ {
+            // ── Type 0: raw uncompressed line / skip-line / stray ─────────
             0 => {
-                // ── Type 0: raw uncompressed line / skip-line / stray ──────────
                 stats.n_t0 += 1;
-                if cfg.strict_t0 {
-                    if low6 == 1 {
-                        // Raw-copy line: read line_bytes, write into bitmap row.
-                        pos += 1;
-                        if pos + line_bytes <= n {
-                            let row = &data[pos..pos + line_bytes];
-                            let dst = &mut bitmap
-                                [y as usize * row_bytes..y as usize * row_bytes + line_bytes];
-                            dst.copy_from_slice(row);
-                            // Update ref_table from the raw row, padded with 16
-                            // trailing sentinels (matches Python line 631).
-                            ref_table = table_from_raw(row, width as i32);
-                            ref_table
-                                .extend(std::iter::repeat_n(width as i32, 16));
-                            pos += line_bytes;
-                            y += 1;
-                            consecutive_fail = 0;
-                            last_was_drift = false;
-                        } else {
-                            // Truncated stream — bail out of the loop.
-                            break;
-                        }
-                    } else if low6 == 3 {
-                        // Skip-line: consume marker + line_bytes, no y advance,
-                        // no output write, table_prev unchanged.
-                        pos += 1 + line_bytes;
-                        // last_was_drift unchanged (matches Python `continue`
-                        // without touching last_kind).
-                    } else {
-                        // Stray type-0 byte — drop single byte.
-                        pos += 1;
-                        last_was_drift = true;
-                    }
-                } else {
-                    // Non-strict path (diagnostic; Task 10 fleshes out).
-                    // For now: treat as raw-copy (pre-RE legacy behaviour).
+
+                if cfg.strict_t0 && low6 != 1 && low6 != 3 {
+                    // Canonical: every type-0 byte with low6 ∉ {1,3} is a
+                    // stray. Consume 1 byte, leave last_kind / table / y.
+                    // Python: `continue` without touching last_kind.
                     pos += 1;
-                    if pos + line_bytes <= n {
-                        let row = &data[pos..pos + line_bytes];
-                        let dst = &mut bitmap
-                            [y as usize * row_bytes..y as usize * row_bytes + line_bytes];
-                        dst.copy_from_slice(row);
-                        ref_table = table_from_raw(row, width as i32);
-                        ref_table.extend(std::iter::repeat_n(width as i32, 16));
-                        pos += line_bytes;
-                        y += 1;
-                        consecutive_fail = 0;
-                        last_was_drift = false;
-                    } else {
-                        break;
-                    }
+                    // Note: last_kind intentionally NOT updated (matches Python).
+                    continue;
                 }
+
+                if low6 == 3 {
+                    // Skip-line: consume marker + line_bytes, no y advance,
+                    // no output write, table_prev unchanged (Python lines 588-600).
+                    pos += 1 + line_bytes;
+                    // last_kind intentionally NOT updated (Python `continue`).
+                    continue;
+                }
+
+                // low6 == 1 (raw-copy) — or strict_t0 disabled (legacy path).
+
+                // t0_drop_after_drift gate (H1 heuristic, 7th session).
+                // Python lines 604-611.
+                if cfg.t0_drop_after_drift != T0DropMode::None
+                    && is_t0_drift(last_kind, cfg)
+                {
+                    match cfg.t0_drop_after_drift {
+                        T0DropMode::Marker => pos += 1,
+                        T0DropMode::Full => pos += 1 + line_bytes,
+                        T0DropMode::None => unreachable!(),
+                    }
+                    // leave last_kind unchanged (Python `continue`)
+                    continue;
+                }
+
+                // Consume marker + payload.
+                pos += 1;
+                let row_end = pos + line_bytes;
+                if row_end > n {
+                    // Truncated stream.
+                    break;
+                }
+                let raw = &data[pos..row_end];
+
+                // Write row to bitmap.
+                let dst = &mut bitmap[y as usize * row_bytes..y as usize * row_bytes + line_bytes];
+                dst.copy_from_slice(raw);
+
+                // Update reference table (t0_reset: reset to sentinel instead
+                // of building from raw bytes — diagnostic flag).
+                if cfg.t0_reset {
+                    ref_table = sentinel.clone();
+                } else {
+                    ref_table = table_from_raw(raw, width as i32);
+                    ref_table.extend(std::iter::repeat_n(width as i32, 16));
+                }
+
+                pos += line_bytes;
+                y += 1;
+                consecutive_fail = 0;
+                last_kind = Some(DispatchKind::T0);
             }
+
+            // ── Type 1: single-pixel positions ────────────────────────────
             1 => {
-                // ── Type 1: single-pixel positions ────────────────────────────
                 stats.n_t1 += 1;
                 if cfg.suppress_t1_all {
-                    // Drop the marker only — no y advance, no ref_table change.
+                    // Drop marker only, no y advance. Python `continue`
+                    // without touching last_kind.
                     pos += 1;
-                    last_was_drift = true;
-                } else {
-                    // Diagnostic path (Task 10). For now: drop marker only.
-                    pos += 1;
-                    last_was_drift = true;
+                    continue;
                 }
-            }
-            2 => {
-                // ── Type 2: CCITT-T.6 compressed line ────────────────────────
+                // Non-suppressed path: treat as stray (diagnostic).
                 pos += 1;
+                last_kind = Some(DispatchKind::T1);
+            }
+
+            // ── Type 2: CCITT-T.6 compressed line ────────────────────────
+            2 => {
+                // Capture prev_kind before any mutation (needed for
+                // suppress_t2_fail_y_in_cascade and fail_resync_max gates).
+                let prev_kind = last_kind;
+
+                pos += 1; // consume marker byte
                 let (table, consumed_bits) = decomp_line(
                     data,
                     pos,
@@ -153,20 +204,44 @@ pub(crate) fn decode_image_chunk(
                 );
                 let consumed_bytes = ((consumed_bits + 7) / 8) as usize;
 
-                // The FAIL sentinel is [-1, width, width, width].
-                let is_fail = table.len() == 4
+                let is_fail_sentinel = table.len() == 4
                     && table[0] == -1
                     && table[1] == width as i32
                     && table[2] == width as i32
                     && table[3] == width as i32;
+                let looks_v0 = is_fail_sentinel && consumed_bits == 1;
+                let is_real_fail = is_fail_sentinel && consumed_bits != 1;
 
-                // Distinguish V0 (fail sentinel returned with only 1 bit consumed)
-                // vs real FAIL.
-                let looks_v0 = is_fail && consumed_bits == 1;
+                // BAD check: table is non-sentinel but x_final > width+3.
+                let tail = &table[1..];
+                let x_final = if tail.len() >= 3 {
+                    Some(tail[tail.len() - 3])
+                } else {
+                    tail.last().copied()
+                };
+                let valid_x = x_final.is_none_or(|xf| xf <= width as i32 + 3);
+                let is_bad = !is_fail_sentinel && !valid_x;
 
-                if is_fail && !looks_v0 {
-                    // Real FAIL: emit all-white row (bitmap already zeroed),
-                    // do NOT update ref_table.
+                // ── suppress_t2_fail_y_in_cascade ────────────────────────
+                // When a cascade FAIL occurs (prev was also drift), skip y
+                // advance, no row emit, leave last_kind and table_prev.
+                // Python lines 680-685.
+                if is_real_fail
+                    && cfg.suppress_t2_fail_y_in_cascade
+                    && is_drift(prev_kind)
+                {
+                    pos += consumed_bytes;
+                    // last_kind intentionally NOT updated (Python `continue`).
+                    continue;
+                }
+
+                // ── Emit row ─────────────────────────────────────────────
+                let row = table_to_row(&table, width as i32, row_bytes);
+                let dst = &mut bitmap[y as usize * row_bytes..(y as usize + 1) * row_bytes];
+                dst.copy_from_slice(&row);
+
+                // ── Update kind + stats ───────────────────────────────────
+                let this_kind = if is_real_fail {
                     stats.n_fail += 1;
                     consecutive_fail += 1;
                     stats.max_consecutive_fail =
@@ -174,55 +249,153 @@ pub(crate) fn decode_image_chunk(
                     if stats.first_fail_y.is_none() {
                         stats.first_fail_y = Some(y);
                     }
-                    last_was_drift = true;
+                    DispatchKind::Fail
                 } else if looks_v0 {
-                    // V0-only line: decoder fell off after a single V(0) code.
-                    // Treat similarly to FAIL for stats and ref tracking.
                     stats.n_v0 += 1;
                     consecutive_fail += 1;
                     stats.max_consecutive_fail =
                         stats.max_consecutive_fail.max(consecutive_fail);
-                    last_was_drift = true;
+                    DispatchKind::V0
+                } else if is_bad {
+                    consecutive_fail += 1;
+                    stats.max_consecutive_fail =
+                        stats.max_consecutive_fail.max(consecutive_fail);
+                    DispatchKind::Bad
                 } else {
-                    // Successful decode: write the rendered row + update ref.
                     stats.n_ok += 1;
                     consecutive_fail = 0;
-                    let row = table_to_row(&table, width as i32, row_bytes);
-                    let dst =
-                        &mut bitmap[y as usize * row_bytes..(y as usize + 1) * row_bytes];
-                    dst.copy_from_slice(&row);
-                    // ref_table = [-1] + table[1:] + [width] * 16
-                    // (matches Python line 698).
+                    DispatchKind::Ok
+                };
+                last_kind = Some(this_kind);
+
+                // ── Update reference table ────────────────────────────────
+                if cfg.reset_ref_after_drift
+                    && matches!(
+                        this_kind,
+                        DispatchKind::Fail | DispatchKind::V0 | DispatchKind::Bad
+                    )
+                {
+                    ref_table = sentinel.clone();
+                } else if !is_real_fail {
+                    // Successful (or V0/BAD) — update ref from table.
                     ref_table = std::iter::once(-1i32)
                         .chain(table[1..].iter().copied())
                         .chain(std::iter::repeat_n(width as i32, 16))
                         .collect();
-                    last_was_drift = false;
                 }
+                // On real FAIL without reset_ref_after_drift: keep old ref.
+
                 pos += consumed_bytes;
                 y += 1;
-            }
-            3 => {
-                // ── Type 3: blank-line run ────────────────────────────────────
-                if cfg.drop_blank_after_drift && last_was_drift {
-                    // Suspect sync-drift: consume byte but don't advance y
-                    // or reset reference. Matches Python `continue` without
-                    // updating last_kind.
-                    stats.blank_drops_after_drift += 1;
-                    pos += 1;
-                    // last_was_drift remains true.
-                } else {
-                    // Canonical: advance y by (low6 + 1) (seg2:0xC68 `inc ax`).
-                    // Reset reference table to sentinel (matches Python line 781).
-                    let advance = low6 + 1;
-                    ref_table = sentinel.clone();
-                    // Bitmap rows stay zero (already initialised).
-                    let new_y = (y + advance).min(height);
-                    y = new_y;
-                    pos += 1;
-                    last_was_drift = false;
+
+                // ── Smart resync (fail_resync_max) ────────────────────────
+                // Python lines 710-759. Only on isolated FAIL (prev not in
+                // {FAIL, V0, BAD, T1}).
+                if is_real_fail
+                    && cfg.fail_resync_max > 0
+                    && resync_budget_remaining > 0
+                    && !matches!(
+                        prev_kind,
+                        Some(
+                            DispatchKind::Fail
+                                | DispatchKind::V0
+                                | DispatchKind::Bad
+                                | DispatchKind::T1
+                        )
+                    )
+                {
+                    // `pos` is now positioned after the FAIL's consumed bytes
+                    // (the "naive" next position in Python).
+                    let naive = pos;
+                    let ref_for_probe = ref_table.clone();
+                    let k = cfg.fail_resync_max as i64;
+                    let mut best_off: i64 = 0;
+                    let mut best_score: i64 = i64::MIN;
+
+                    for off in -k..=k {
+                        let cand = naive as i64 + off;
+                        if cand <= (chunk_start + 0x42) as i64 || cand >= (n as i64) - 1 {
+                            continue;
+                        }
+                        let cand_pos = cand as usize;
+                        let (n_ok_p, n_drift_p) = resync_probe(
+                            data,
+                            cand_pos,
+                            &ref_for_probe,
+                            width as i32,
+                            line_bytes,
+                            cfg.fail_resync_lookahead,
+                            cfg.bug4,
+                            cfg.lazy_bit_loading,
+                        );
+                        let score = n_ok_p as i64 - n_drift_p as i64;
+                        // Tie-break: prefer smaller absolute offset.
+                        if score > best_score
+                            || (score == best_score && off.unsigned_abs() < best_off.unsigned_abs())
+                        {
+                            best_score = score;
+                            best_off = off;
+                        }
+                    }
+
+                    // Record 2*K+1 probes for this FAIL event; decrement budget.
+                    stats.resync_probes += 2 * cfg.fail_resync_max + 1;
+                    resync_budget_remaining = resync_budget_remaining.saturating_sub(1);
+
+                    // Confidence gate: commit only if margin >= min_confidence.
+                    if best_off != 0
+                        && best_score
+                            >= cfg.fail_resync_min_confidence as i64
+                    {
+                        pos = (naive as i64 + best_off) as usize;
+                        // Always reset ref after resync (matches Python line 757:
+                        // `table_prev = list(sentinel)` unconditionally on commit).
+                        ref_table = sentinel.clone();
+                        stats.resync_hits += 1;
+                    }
+                } else if is_real_fail
+                    && cfg.fail_scan_forward > 0
+                {
+                    // ── fail_scan_forward (H4 heuristic) ─────────────────
+                    // Scan for 0x80 0xf8 byte pair. Python lines 760-769.
+                    let scan_end = (pos + cfg.fail_scan_forward as usize).min(n.saturating_sub(1));
+                    let mut sp = pos;
+                    while sp < scan_end {
+                        if data[sp] == 0x80
+                            && sp + 1 < n
+                            && data[sp + 1] == 0xf8
+                        {
+                            if sp != pos {
+                                pos = sp;
+                            }
+                            break;
+                        }
+                        sp += 1;
+                    }
                 }
             }
+
+            // ── Type 3: blank-line run ────────────────────────────────────
+            3 => {
+                if cfg.drop_blank_after_drift && is_drift(last_kind) {
+                    // Suspect sync-drift: consume byte but don't advance y
+                    // or reset reference. Python `continue` without touching
+                    // last_kind.
+                    stats.blank_drops_after_drift += 1;
+                    pos += 1;
+                    // last_kind remains unchanged.
+                    continue;
+                }
+                // Canonical: advance y by (low6 + 1) (seg2:0xC68 `inc ax`).
+                let advance = low6 + 1;
+                ref_table = sentinel.clone();
+                // Bitmap rows stay zero (already initialised).
+                let new_y = (y + advance).min(height);
+                y = new_y;
+                pos += 1;
+                last_kind = Some(DispatchKind::Ok); // 'BLANK' in Python; use Ok as closest
+            }
+
             _ => unreachable!(),
         }
     }
