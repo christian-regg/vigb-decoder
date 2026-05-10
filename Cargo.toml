@@ -39,3 +39,7 @@ corpus = []   # Local-only feature: enables tests/corpus.rs against personal arc
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+[[bench]]
+name = "decoder"
+harness = false
