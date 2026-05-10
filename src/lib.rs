@@ -20,3 +20,4 @@ pub use config::{Config, ConfigBuilder, DispatchKind, T0DropMode};
 mod bitstream;
 mod ccitt;
 mod chunks;
+mod decoder;
