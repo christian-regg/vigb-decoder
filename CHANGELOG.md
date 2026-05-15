@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Config::max_pages` (default 1024) caps the per-file image-chunk
+  count accepted by `decode_max`; new `MaxError::TooManyPages`
+  variant; CLI flag `--max-pages` exposes the knob (raise for
+  legitimate large scanned collections, lower for service
+  deployments). SEC-M04.
+- CLI: `--t0-drop-after-drift none` is now accepted alongside the
+  historical empty-string form on both the Rust binary and the
+  Python sibling. Matches `docs/cli.md` which documented `none`
+  before either CLI accepted it.
+
 ### Changed
+- **Breaking (pre-1.0):** `Config`, `Page`, and `Preview` are now
+  marked `#[non_exhaustive]`. Out-of-crate callers must construct
+  these types via decoder functions (`decode_max`, `decode_max_file`)
+  or via `Config::default` / `Config::builder` — not struct-literal
+  syntax. Allows future fields to be added without a semver-breaking
+  change and prevents adversarial-`Page` paths into `write_pdf`
+  (e.g., `dpi_x = 0`, `row_bytes = u32::MAX`).
 - **Breaking (pre-1.0):** preview-thumbnail embedding is now off by
   default. The 102×146 grayscale preview was historically appended as
   an extra PDF page per source page so users still got *something* when
@@ -20,8 +38,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `python-reference/max2pdf.py` → `python-reference/vigb_max2pdf.py` to
   disambiguate from the unrelated GPL `orangeturtle739/max2pdf` project
   (LEGAL-S01).
+- `docs/cli.md` gains a "Security notes" section documenting the
+  CLI's output-path trust model (it honours `-o` verbatim, including
+  `..` traversal) and provides a canonicalize-and-contain recipe for
+  service operators wrapping the binary on untrusted input. No code
+  change — interactive `-o ../foo` workflows are intentionally
+  supported.
+- `Config::fail_resync_budget` docstring, `--fail-resync-budget` CLI
+  help, and `docs/cli.md` updated to accurately describe the SEC-M02
+  cap. The code already capped `0` at 1024 since SEC-M02 landed; the
+  docs continued to claim "unlimited" until now. No behaviour change.
+
+### Removed
+- **Breaking (pre-1.0):** `MaxError::BitUnderrun` variant. It was
+  public but never constructed — soft underruns flow through
+  `DecodeStats::n_fail` via the FAIL sentinel.
 
 ### Security
+- Bound the per-chunk dispatcher to `chunk_start + chunk_length`
+  instead of `data.len()`. Closes a quadratic-CPU vector via crafted
+  files packing many minimum-size (0x42-byte) image chunks back-to-back;
+  the previous bound allowed each chunk's dispatch loop to scan into
+  every later chunk's bytes, producing roughly O(N²) work in the
+  chunk count. Mirrored in the Python reference at
+  `python-reference/vigb_max2pdf.py`. SEC-M03.
+- Cap per-file image-chunk count via `Config::max_pages` (default
+  1024). Each decoded `Page` allocates up to `MAX_IMAGE_PIXELS / 8`
+  (~25 MiB) of bitmap and is retained in memory until `decode_max`
+  returns; without the cap a crafted file with N chunks could request
+  `N × 25 MiB` resident memory. SEC-M04. Rust-only hardening (Python
+  reference has no analogue, matching the SEC-M02 pattern).
 - Reject image chunks shorter than `IMAGE_CHUNK_MIN_LEN` (`0x42`) at
   discovery time and bail safely from preview decoding when
   `preview_size > chunk_length` would otherwise underflow (CRIT-01,
