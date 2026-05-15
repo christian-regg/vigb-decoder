@@ -49,3 +49,41 @@ Diagnose a problematic file (turn off canonical fixes one at a time):
 Try smart resync on a file with FAIL events:
 
     vigb-max2pdf bad.max --fail-resync-max 4 --reset-ref-after-drift --fail-resync-min-confidence 2
+
+## Security notes
+
+The decoder itself bounds work and memory on adversarial `.max` content
+(SEC-M01..M04 in `src/dispatch.rs` and `src/lib.rs`). The CLI's path
+handling is **not** sandboxed:
+
+- The `-o` value is honoured verbatim. `-o ../somewhere` or absolute
+  paths like `-o /etc/foo/` resolve as written; the binary will
+  `create_dir_all` and write into the resulting directory.
+- The output filename is `<input.file_stem()>.pdf`. `file_stem` strips
+  every path component except the basename, so a crafted input path
+  cannot inject `..` segments into the *output* filename — only the
+  output *directory* (taken from `-o`) controls where the file lands.
+
+For interactive use this is the expected, useful behaviour. **If you
+wrap `vigb-max2pdf` in a service that exposes `-o` (or the working
+directory) to an untrusted caller, canonicalize and enforce
+containment yourself before invoking the binary.** Sketch:
+
+```rust
+use std::path::{Path, PathBuf};
+
+fn safe_output_dir(user_request: &Path, allowed_root: &Path) -> std::io::Result<PathBuf> {
+    let absolute = allowed_root.join(user_request);
+    let canonical = absolute.canonicalize()?;
+    if !canonical.starts_with(allowed_root.canonicalize()?) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "output directory escapes allowed root",
+        ));
+    }
+    Ok(canonical)
+}
+```
+
+The shell equivalent is `realpath --relative-to=<root>` plus a prefix
+check.
