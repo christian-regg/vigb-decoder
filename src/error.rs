@@ -24,14 +24,6 @@ pub enum MaxError {
         /// Bytes actually available from this offset to EOF.
         have: usize,
     },
-    /// The CCITT bitstream ran out of bits mid-line.
-    #[error("decoder bit underrun at line {y}, x={x}")]
-    BitUnderrun {
-        /// Row index in the image.
-        y: u32,
-        /// Pixel column where the underrun was detected.
-        x: u32,
-    },
     /// An image chunk's declared dimensions would require an unreasonably
     /// large allocation. Crafted `.max` files can claim `width = height =
     /// 65535`, which would request hundreds of MB from a 64-byte header.
@@ -73,12 +65,6 @@ mod tests {
     fn truncated_displays() {
         let e = MaxError::Truncated { offset: 0x100, need: 8, have: 3 };
         assert_eq!(e.to_string(), "truncated chunk at 0x100: need 8 bytes, have 3");
-    }
-
-    #[test]
-    fn bit_underrun_displays() {
-        let e = MaxError::BitUnderrun { y: 305, x: 2376 };
-        assert_eq!(e.to_string(), "decoder bit underrun at line 305, x=2376");
     }
 
     #[test]

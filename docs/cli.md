@@ -22,7 +22,7 @@ Long names match exactly so muscle memory transfers.
 | `--fail-resync-max` | 0 | Smart-resync probe range ±K after isolated FAIL (0 disables) |
 | `--fail-resync-lookahead` | 5 | Smart-resync probe lookahead in lines |
 | `--fail-resync-min-confidence` | 0 | Minimum confidence margin (n_ok - n_drift) |
-| `--fail-resync-budget` | 0 | Maximum total resync probes per page (0 = unlimited) |
+| `--fail-resync-budget` | 0 | Maximum total resync probes per page (Rust: 0 = safe default cap of 1024; Python: 0 = unlimited) |
 | `--reset-ref-after-drift` | off | Reset reference table after a drift event |
 | `--keep-drift-blanks` | off | Keep type-3 BLANK markers after drift (diagnostic — disables 6th-session fix) |
 | `--keep-t1-dispatches` | off | Keep type-1 dispatches (diagnostic — disables 6th-session fix) |

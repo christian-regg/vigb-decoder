@@ -1036,8 +1036,9 @@ def main(argv=None):
                          '(experimental; helps dense-text files at the cost of '
                          'form-field decode quality on sparse files)')
     ap.add_argument('--t0-drop-after-drift',
-                    choices=['', 'marker', 'full'], default='',
+                    choices=['', 'none', 'marker', 'full'], default='',
                     help='Drop drift T0 dispatches (H1 finding). '
+                         '"none" (or "") = off, '
                          '"marker"=drop 1-byte marker only, '
                          '"full"=drop marker + 308-byte payload.')
     ap.add_argument('--t0-drop-kinds', default=None,
@@ -1136,8 +1137,10 @@ def main(argv=None):
         t0_kinds = (set(s.strip() for s in args.t0_drop_kinds.split(',') if s.strip())
                     if args.t0_drop_kinds else None)
         try:
+            t0_drop_mode = ('' if args.t0_drop_after_drift == 'none'
+                            else args.t0_drop_after_drift)
             pages = parse_max(path, t0_reset=args.t0_reset,
-                              t0_drop_after_drift=args.t0_drop_after_drift,
+                              t0_drop_after_drift=t0_drop_mode,
                               t0_drop_kinds=t0_kinds,
                               include_preview=args.preview,
                               drop_blank_after_drift=not args.keep_drift_blanks,

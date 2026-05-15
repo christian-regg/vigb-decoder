@@ -85,7 +85,8 @@ struct Cli {
     #[arg(long, default_value_t = 0)]
     fail_resync_min_confidence: u32,
 
-    /// Maximum total resync probes per page (0 = unlimited)
+    /// Maximum total resync probes per page (0 = safe default cap of 1024;
+    /// hardening on top of the Python reference, which has no cap)
     #[arg(long, default_value_t = 0)]
     fail_resync_budget: u32,
 
@@ -96,7 +97,9 @@ struct Cli {
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 enum T0DropArg {
-    #[value(name = "")]
+    // Accepts "none" (documented in docs/cli.md) and "" (Python-CLI parity:
+    // python-reference/vigb_max2pdf.py uses '' as the off value).
+    #[value(name = "none", alias = "")]
     None,
     #[value(name = "marker")]
     Marker,

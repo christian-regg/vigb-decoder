@@ -49,7 +49,12 @@ pub enum DispatchKind {
 /// `python-reference/vigb_max2pdf.py` defaults at corpus median IoU = 1.000). All other fields
 /// are diagnostic or experimental — leave them as default unless you know
 /// what you're flipping.
+///
+/// Marked `#[non_exhaustive]`: out-of-crate callers must construct via
+/// [`Config::default`] or [`Config::builder`], not struct-literal syntax.
+/// Allows new fields to be added without a semver-breaking change.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Config {
     // --- Canonical fixes (default ON) ---
     /// 12th-session canonical reference-table walk. Default true.
@@ -91,7 +96,13 @@ pub struct Config {
     pub fail_resync_lookahead: u32,
     /// Minimum (n_ok - n_drift) margin to accept a resync candidate.
     pub fail_resync_min_confidence: u32,
-    /// Maximum total resync probes per page. 0 = unlimited.
+    /// Maximum total resync probes per page. `0` means "use the safe
+    /// default cap" (currently 1024); any value above the cap is clamped
+    /// to the cap. This bounds worst-case dispatcher work on malformed
+    /// input (SEC-M02 mitigation). The Python reference at
+    /// `python-reference/vigb_max2pdf.py` treats `0` as truly unlimited
+    /// (`float('inf')`) — a documented Rust-side hardening, not a parity
+    /// bug. Bit-perfect decode of the canonical corpus is unaffected.
     pub fail_resync_budget: u32,
     /// Reset reference table to all-white after a drift event.
     pub reset_ref_after_drift: bool,
