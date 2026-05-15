@@ -131,7 +131,11 @@ pub(crate) fn decomp_line(
                             Some(v) => v,
                             None => return fail_table(width, &bc, start_pos),
                         };
-                        let table = if colour == 0 { &*WHITE_TABLE } else { &*BLACK_TABLE };
+                        let table = if colour == 0 {
+                            &*WHITE_TABLE
+                        } else {
+                            &*BLACK_TABLE
+                        };
                         let hit = match table[top13 as usize] {
                             Some(h) => h,
                             None => return fail_table(width, &bc, start_pos),
@@ -217,14 +221,12 @@ pub(crate) fn decomp_line(
 
     out.push(width);
     out.push(width);
-    let consumed =
-        ((bc.next_load_byte() - start_pos) as i64) * 8 - bc.bits_buffered() as i64;
+    let consumed = ((bc.next_load_byte() - start_pos) as i64) * 8 - bc.bits_buffered() as i64;
     (out, consumed)
 }
 
 fn fail_table(width: i32, bc: &BitCursor<'_>, start_pos: usize) -> (Vec<i32>, i64) {
-    let consumed =
-        ((bc.next_load_byte() - start_pos) as i64) * 8 - bc.bits_buffered() as i64;
+    let consumed = ((bc.next_load_byte() - start_pos) as i64) * 8 - bc.bits_buffered() as i64;
     (vec![-1, width, width, width], consumed)
 }
 
@@ -255,7 +257,11 @@ pub(crate) fn table_to_row(table: &[i32], width: i32, row_bytes: usize) -> Vec<u
             if sb == eb {
                 let lo = (start & 7) as u32;
                 // hi = (end & 7) or 8 — Python's "or" means: if zero use 8
-                let hi = if (end & 7) == 0 { 8u32 } else { (end & 7) as u32 };
+                let hi = if (end & 7) == 0 {
+                    8u32
+                } else {
+                    (end & 7) as u32
+                };
                 // Both operands are u8; the & 0xFF in Python is a no-op here.
                 let mask = (0xFFu8 >> lo) & (0xFFu8 << (8 - hi));
                 out[sb] |= mask;
@@ -347,8 +353,7 @@ pub(crate) fn resync_probe(
             }
             2 => {
                 pos += 1;
-                let (table, consumed_bits) =
-                    decomp_line(data, pos, width, &local_ref, lazy, bug4);
+                let (table, consumed_bits) = decomp_line(data, pos, width, &local_ref, lazy, bug4);
                 let consumed_bytes = ((consumed_bits + 7) / 8) as usize;
                 let is_fail = table.len() == 4
                     && table[0] == -1
@@ -401,8 +406,8 @@ mod tests {
         // and exits.
         let width: i32 = 16;
         let ref_table: Vec<i32> = vec![
-            -1, width, width, width, width, width, width, width, width, width, width, width,
-            width, width, width, width, width,
+            -1, width, width, width, width, width, width, width, width, width, width, width, width,
+            width, width, width, width,
         ];
         // Encode V(0): 1 bit = 0b1, padded to a byte = 0x80.
         let data = [0x80u8];

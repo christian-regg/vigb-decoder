@@ -150,7 +150,7 @@ fn encode_synthetic_max(bits: &[u8], width: u32, height: u32) -> Vec<u8> {
     chunk[0x28..0x2A].copy_from_slice(&(height as u16).to_le_bytes());
     chunk[0x2A..0x2C].copy_from_slice(&300u16.to_le_bytes()); // dpi_x
     chunk[0x2C..0x2E].copy_from_slice(&300u16.to_le_bytes()); // dpi_y
-    chunk[0x2E..0x30].copy_from_slice(&1u16.to_le_bytes());   // bpp = 1
+    chunk[0x2E..0x30].copy_from_slice(&1u16.to_le_bytes()); // bpp = 1
 
     // preview_size at +0x3C = 0 (already zero from vec initialisation).
     // preview_x, preview_y at +0x3E, +0x40 stay zero.

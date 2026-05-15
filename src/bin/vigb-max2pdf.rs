@@ -8,7 +8,11 @@ use clap::{ArgAction, Parser, ValueEnum};
 use vigb_decoder::{decode_max_file, write_pdf, Config, DispatchKind, T0DropMode};
 
 #[derive(Debug, Parser)]
-#[command(name = "vigb-max2pdf", version, about = "Convert PaperPort 2 (.max) files to PDF")]
+#[command(
+    name = "vigb-max2pdf",
+    version,
+    about = "Convert PaperPort 2 (.max) files to PDF"
+)]
 struct Cli {
     /// One or more .max files
     #[arg(required = true)]
@@ -175,9 +179,8 @@ fn process_one(
     cfg: &Config,
     want_stats: bool,
 ) -> Result<(), String> {
-    let pages = decode_max_file(input, cfg).map_err(|e| {
-        format!("failed to decode {}: {}", input.display(), e)
-    })?;
+    let pages = decode_max_file(input, cfg)
+        .map_err(|e| format!("failed to decode {}: {}", input.display(), e))?;
 
     let stem = input
         .file_stem()
@@ -191,14 +194,12 @@ fn process_one(
                 .map(std::path::Path::to_path_buf)
                 .unwrap_or_else(|| PathBuf::from("."))
         });
-    std::fs::create_dir_all(&parent).map_err(|e| {
-        format!("failed to create output dir {}: {}", parent.display(), e)
-    })?;
+    std::fs::create_dir_all(&parent)
+        .map_err(|e| format!("failed to create output dir {}: {}", parent.display(), e))?;
     let out_path = parent.join(format!("{stem}.pdf"));
 
-    write_pdf(&pages, &out_path).map_err(|e| {
-        format!("failed to write {}: {}", out_path.display(), e)
-    })?;
+    write_pdf(&pages, &out_path)
+        .map_err(|e| format!("failed to write {}: {}", out_path.display(), e))?;
     println!("{} -> {}", input.display(), out_path.display());
 
     if want_stats {

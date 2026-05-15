@@ -68,11 +68,20 @@ pub fn decode_max(data: &[u8], cfg: &Config) -> Result<Vec<Page>> {
     }
     let chunks = chunks::find_image_chunks(data);
     if chunks.is_empty() {
-        return Err(MaxError::Truncated { offset: 0u64, need: 0x40, have: data.len() });
+        return Err(MaxError::Truncated {
+            offset: 0u64,
+            need: 0x40,
+            have: data.len(),
+        });
     }
     let mut out = Vec::with_capacity(chunks.len());
     for chunk in chunks {
-        out.push(dispatch::decode_image_chunk(data, chunk.offset, chunk.length, cfg)?);
+        out.push(dispatch::decode_image_chunk(
+            data,
+            chunk.offset,
+            chunk.length,
+            cfg,
+        )?);
     }
     Ok(out)
 }

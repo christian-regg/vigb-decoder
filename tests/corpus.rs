@@ -102,8 +102,7 @@ fn corpus_regression() {
             let mut row_diffs = 0u32;
             for y in 0..*ref_h as usize {
                 let pbm_row = &ref_bits[y * pbm_row_bytes..(y + 1) * pbm_row_bytes];
-                let dec_row = &page.bitmap
-                    [y * dec_row_bytes..y * dec_row_bytes + pbm_row_bytes];
+                let dec_row = &page.bitmap[y * dec_row_bytes..y * dec_row_bytes + pbm_row_bytes];
                 if pbm_row != dec_row {
                     row_diffs += 1;
                 }
@@ -166,7 +165,9 @@ fn extract_pdf_main_images(path: &Path) -> Vec<(u32, u32, Vec<u8>)> {
         let payload_start = abs + stream_off + b"stream\n".len();
         let payload = &bytes[payload_start..payload_start + length];
         let mut decoded: Vec<u8> = Vec::with_capacity((width * height) as usize / 8);
-        ZlibDecoder::new(payload).read_to_end(&mut decoded).expect("zlib");
+        ZlibDecoder::new(payload)
+            .read_to_end(&mut decoded)
+            .expect("zlib");
         images.push((width as u32, height as u32, decoded, abs));
         pos = payload_start + length;
     }
@@ -215,5 +216,8 @@ fn parse_int_after(slice: &[u8], key: &[u8]) -> u32 {
     while p < slice.len() && slice[p].is_ascii_digit() {
         p += 1;
     }
-    std::str::from_utf8(&slice[start..p]).unwrap().parse().unwrap()
+    std::str::from_utf8(&slice[start..p])
+        .unwrap()
+        .parse()
+        .unwrap()
 }

@@ -13,7 +13,10 @@ fn lazy_bit_loading_matches_eager_on_synthetic() {
     let p_eager = &decode_max(&data, &Config::default()).unwrap()[0];
     let cfg_lazy = Config::builder().lazy_bit_loading(true).build();
     let p_lazy = &decode_max(&data, &cfg_lazy).unwrap()[0];
-    assert_eq!(p_eager.bitmap, p_lazy.bitmap, "lazy != eager on canonical input");
+    assert_eq!(
+        p_eager.bitmap, p_lazy.bitmap,
+        "lazy != eager on canonical input"
+    );
 }
 
 #[test]

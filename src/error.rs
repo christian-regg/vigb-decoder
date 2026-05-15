@@ -63,8 +63,15 @@ mod tests {
 
     #[test]
     fn truncated_displays() {
-        let e = MaxError::Truncated { offset: 0x100, need: 8, have: 3 };
-        assert_eq!(e.to_string(), "truncated chunk at 0x100: need 8 bytes, have 3");
+        let e = MaxError::Truncated {
+            offset: 0x100,
+            need: 8,
+            have: 3,
+        };
+        assert_eq!(
+            e.to_string(),
+            "truncated chunk at 0x100: need 8 bytes, have 3"
+        );
     }
 
     #[test]

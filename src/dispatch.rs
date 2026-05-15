@@ -77,11 +77,19 @@ pub(crate) fn decode_image_chunk(
     let height = read_u16(0x28);
     let dpi_x = {
         let v = read_u16(0x2a);
-        if v == 0 { 300 } else { v }
+        if v == 0 {
+            300
+        } else {
+            v
+        }
     };
     let dpi_y = {
         let v = read_u16(0x2c);
-        if v == 0 { 300 } else { v }
+        if v == 0 {
+            300
+        } else {
+            v
+        }
     };
     // bpp at +0x2e — only 1-bit images supported.
 
@@ -198,9 +206,7 @@ pub(crate) fn decode_image_chunk(
 
                 // t0_drop_after_drift gate (H1 heuristic, 7th session).
                 // Python lines 604-611.
-                if cfg.t0_drop_after_drift != T0DropMode::None
-                    && is_t0_drift(last_kind, cfg)
-                {
+                if cfg.t0_drop_after_drift != T0DropMode::None && is_t0_drift(last_kind, cfg) {
                     match cfg.t0_drop_after_drift {
                         T0DropMode::Marker => pos += 1,
                         T0DropMode::Full => pos += 1 + line_bytes,
@@ -291,10 +297,7 @@ pub(crate) fn decode_image_chunk(
                 // When a cascade FAIL occurs (prev was also drift), skip y
                 // advance, no row emit, leave last_kind and table_prev.
                 // Python lines 680-685.
-                if is_real_fail
-                    && cfg.suppress_t2_fail_y_in_cascade
-                    && is_drift(prev_kind)
-                {
+                if is_real_fail && cfg.suppress_t2_fail_y_in_cascade && is_drift(prev_kind) {
                     pos += consumed_bytes;
                     // last_kind intentionally NOT updated (Python `continue`).
                     continue;
@@ -309,8 +312,7 @@ pub(crate) fn decode_image_chunk(
                 let this_kind = if is_real_fail {
                     stats.n_fail += 1;
                     consecutive_fail += 1;
-                    stats.max_consecutive_fail =
-                        stats.max_consecutive_fail.max(consecutive_fail);
+                    stats.max_consecutive_fail = stats.max_consecutive_fail.max(consecutive_fail);
                     if stats.first_fail_y.is_none() {
                         stats.first_fail_y = Some(y);
                     }
@@ -318,13 +320,11 @@ pub(crate) fn decode_image_chunk(
                 } else if looks_v0 {
                     stats.n_v0 += 1;
                     consecutive_fail += 1;
-                    stats.max_consecutive_fail =
-                        stats.max_consecutive_fail.max(consecutive_fail);
+                    stats.max_consecutive_fail = stats.max_consecutive_fail.max(consecutive_fail);
                     DispatchKind::V0
                 } else if is_bad {
                     consecutive_fail += 1;
-                    stats.max_consecutive_fail =
-                        stats.max_consecutive_fail.max(consecutive_fail);
+                    stats.max_consecutive_fail = stats.max_consecutive_fail.max(consecutive_fail);
                     DispatchKind::Bad
                 } else {
                     stats.n_ok += 1;
@@ -408,28 +408,20 @@ pub(crate) fn decode_image_chunk(
                     resync_budget_remaining = resync_budget_remaining.saturating_sub(1);
 
                     // Confidence gate: commit only if margin >= min_confidence.
-                    if best_off != 0
-                        && best_score
-                            >= cfg.fail_resync_min_confidence as i64
-                    {
+                    if best_off != 0 && best_score >= cfg.fail_resync_min_confidence as i64 {
                         pos = (naive as i64 + best_off) as usize;
                         // Always reset ref after resync (matches Python line 757:
                         // `table_prev = list(sentinel)` unconditionally on commit).
                         ref_table = sentinel.clone();
                         stats.resync_hits += 1;
                     }
-                } else if is_real_fail
-                    && cfg.fail_scan_forward > 0
-                {
+                } else if is_real_fail && cfg.fail_scan_forward > 0 {
                     // ── fail_scan_forward (H4 heuristic) ─────────────────
                     // Scan for 0x80 0xf8 byte pair. Python lines 760-769.
                     let scan_end = (pos + cfg.fail_scan_forward as usize).min(n.saturating_sub(1));
                     let mut sp = pos;
                     while sp < scan_end {
-                        if data[sp] == 0x80
-                            && sp + 1 < n
-                            && data[sp + 1] == 0xf8
-                        {
+                        if data[sp] == 0x80 && sp + 1 < n && data[sp + 1] == 0xf8 {
                             if sp != pos {
                                 pos = sp;
                             }

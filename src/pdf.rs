@@ -54,7 +54,11 @@ pub fn write_pdf_bytes(pages: &[Page], options: &PdfOptions) -> Vec<u8> {
         if options.include_previews {
             if let Some(prev) = &p.preview {
                 page_ids.push(emit_page_for_preview(
-                    prev, p.dpi_x, p.dpi_y, &palette, &mut objects,
+                    prev,
+                    p.dpi_x,
+                    p.dpi_y,
+                    &palette,
+                    &mut objects,
                 ));
             }
         }
@@ -62,7 +66,12 @@ pub fn write_pdf_bytes(pages: &[Page], options: &PdfOptions) -> Vec<u8> {
 
     // /Pages object
     let mut pages_obj = Vec::new();
-    write!(pages_obj, "<< /Type /Pages /Count {} /Kids [", page_ids.len()).unwrap();
+    write!(
+        pages_obj,
+        "<< /Type /Pages /Count {} /Kids [",
+        page_ids.len()
+    )
+    .unwrap();
     for (i, pid) in page_ids.iter().enumerate() {
         if i > 0 {
             pages_obj.push(b' ');
@@ -77,10 +86,7 @@ pub fn write_pdf_bytes(pages: &[Page], options: &PdfOptions) -> Vec<u8> {
         let placeholder = b"/Parent 0 0 R";
         let replacement = format!("/Parent {pages_id} 0 R");
         if let Some(start) = find_subslice(&objects[pid], placeholder) {
-            objects[pid].splice(
-                start..start + placeholder.len(),
-                replacement.bytes(),
-            );
+            objects[pid].splice(start..start + placeholder.len(), replacement.bytes());
         }
     }
 
@@ -139,7 +145,10 @@ fn emit_page_for_bitmap(
         img_dict,
         "<< /Type /XObject /Subtype /Image /Width {} /Height {} /BitsPerComponent 1 \
          /ColorSpace [/Indexed /DeviceGray 1 <{}>] /Filter /FlateDecode /Length {} >>\nstream\n",
-        stored_width, height, pal_hex, compressed.len()
+        stored_width,
+        height,
+        pal_hex,
+        compressed.len()
     )
     .unwrap();
     img_dict.extend_from_slice(&compressed);
@@ -174,7 +183,14 @@ fn emit_page_for_preview(
     objects: &mut Vec<Vec<u8>>,
 ) -> usize {
     emit_page_for_bitmap(
-        &prev.bitmap, prev.width, prev.height, dpi_x, dpi_y, prev.row_bytes, palette, objects,
+        &prev.bitmap,
+        prev.width,
+        prev.height,
+        dpi_x,
+        dpi_y,
+        prev.row_bytes,
+        palette,
+        objects,
     )
 }
 
@@ -224,7 +240,9 @@ mod tests {
         let bytes = write_pdf_bytes(&pages, &PdfOptions::default());
         let xref_pos = bytes.windows(5).position(|w| w == b"xref\n").unwrap();
         let xref_section = &bytes[xref_pos..];
-        assert!(xref_section.windows(20).any(|w| w == b"0000000000 65535 f \n"));
+        assert!(xref_section
+            .windows(20)
+            .any(|w| w == b"0000000000 65535 f \n"));
     }
 
     #[test]

@@ -57,7 +57,10 @@ pub(crate) fn decode_preview_chunk(
     chunk_length: usize,
     scale_to_a4: bool,
 ) -> Option<Preview> {
-    let chunk = ChunkRef { offset: chunk_start, length: chunk_length };
+    let chunk = ChunkRef {
+        offset: chunk_start,
+        length: chunk_length,
+    };
 
     let preview_size = read_u16_at(data, chunk, 0x3c)? as usize;
     let preview_x = read_u16_at(data, chunk, 0x3e)? as usize;
@@ -179,19 +182,14 @@ mod tests {
         let chunk_start = 0;
         let chunk_length = 0x80usize;
         // preview_size at +0x3c
-        data[chunk_start + 0x3c..chunk_start + 0x3e]
-            .copy_from_slice(&0xFFFFu16.to_le_bytes());
+        data[chunk_start + 0x3c..chunk_start + 0x3e].copy_from_slice(&0xFFFFu16.to_le_bytes());
         // preview_x at +0x3e
-        data[chunk_start + 0x3e..chunk_start + 0x40]
-            .copy_from_slice(&102u16.to_le_bytes());
+        data[chunk_start + 0x3e..chunk_start + 0x40].copy_from_slice(&102u16.to_le_bytes());
         // preview_y at +0x40
-        data[chunk_start + 0x40..chunk_start + 0x42]
-            .copy_from_slice(&146u16.to_le_bytes());
+        data[chunk_start + 0x40..chunk_start + 0x42].copy_from_slice(&146u16.to_le_bytes());
         // width / height at +0x26 / +0x28
-        data[chunk_start + 0x26..chunk_start + 0x28]
-            .copy_from_slice(&16u16.to_le_bytes());
-        data[chunk_start + 0x28..chunk_start + 0x2a]
-            .copy_from_slice(&4u16.to_le_bytes());
+        data[chunk_start + 0x26..chunk_start + 0x28].copy_from_slice(&16u16.to_le_bytes());
+        data[chunk_start + 0x28..chunk_start + 0x2a].copy_from_slice(&4u16.to_le_bytes());
 
         assert!(decode_preview_chunk(&data, chunk_start, chunk_length, false).is_none());
     }

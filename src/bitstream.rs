@@ -47,7 +47,14 @@ impl<'a> BitCursor<'a> {
     /// Create a cursor that starts at `start_pos` bytes into `data`.
     #[allow(dead_code)]
     pub fn with_start(data: &'a [u8], start_pos: usize, lazy: bool) -> Self {
-        Self { data, bits: 0, bits_left: 0, pos: start_pos, lazy, total_consumed: 0 }
+        Self {
+            data,
+            bits: 0,
+            bits_left: 0,
+            pos: start_pos,
+            lazy,
+            total_consumed: 0,
+        }
     }
 
     /// Peek the next `n` bits (1..=32) without consuming them.
@@ -65,7 +72,11 @@ impl<'a> BitCursor<'a> {
     /// Consume `n` previously-peeked bits.
     #[allow(dead_code)]
     pub fn consume(&mut self, n: u32) {
-        debug_assert!(self.bits_left >= n, "consume({n}) with {} bits buffered", self.bits_left);
+        debug_assert!(
+            self.bits_left >= n,
+            "consume({n}) with {} bits buffered",
+            self.bits_left
+        );
         self.bits_left -= n;
         self.total_consumed += n as u64;
     }
@@ -105,8 +116,16 @@ impl<'a> BitCursor<'a> {
             // Eager 16-bit refill matching Python `_refill`. Fires once when
             // bits_left drops to ≤16, regardless of `need`.
             if self.bits_left <= 16 {
-                let b0 = if self.pos < self.data.len() { self.data[self.pos] as u64 } else { 0 };
-                let b1 = if self.pos + 1 < self.data.len() { self.data[self.pos + 1] as u64 } else { 0 };
+                let b0 = if self.pos < self.data.len() {
+                    self.data[self.pos] as u64
+                } else {
+                    0
+                };
+                let b1 = if self.pos + 1 < self.data.len() {
+                    self.data[self.pos + 1] as u64
+                } else {
+                    0
+                };
                 self.bits = (self.bits << 16) | (b0 << 8) | b1;
                 self.bits_left += 16;
                 self.pos += 2;
@@ -145,8 +164,12 @@ mod tests {
         let mut e = BitCursor::new(data, false);
         let mut l = BitCursor::new(data, true);
         for n in [3, 5, 7, 13, 8, 4] {
-            assert_eq!(e.peek(n).unwrap(), l.peek(n).unwrap(),
-                       "peek({}) diverges", n);
+            assert_eq!(
+                e.peek(n).unwrap(),
+                l.peek(n).unwrap(),
+                "peek({}) diverges",
+                n
+            );
             e.consume(n);
             l.consume(n);
         }
@@ -162,7 +185,7 @@ mod tests {
         let mut bc = BitCursor::new(data, true); // lazy=true
         let _ = bc.peek(8).unwrap(); // Load the byte
         bc.consume(8); // Consume it all
-        // Now trying to peek should return None because there's no more data to load
+                       // Now trying to peek should return None because there's no more data to load
         assert!(bc.peek(1).is_none());
     }
 

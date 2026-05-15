@@ -81,12 +81,12 @@ pub(crate) fn find_image_chunks(data: &[u8]) -> Vec<ChunkRef> {
                 u32::from_le_bytes([data[pos + 6], data[pos + 7], data[pos + 8], data[pos + 9]]);
             let tag = flags & 0xFFFF;
             let page_index = flags >> 16;
-            if tag == 0x4000
-                && page_index > 0
-                && length >= IMAGE_CHUNK_MIN_LEN
-                && length <= n - pos
+            if tag == 0x4000 && page_index > 0 && length >= IMAGE_CHUNK_MIN_LEN && length <= n - pos
             {
-                out.push(ChunkRef { offset: pos, length });
+                out.push(ChunkRef {
+                    offset: pos,
+                    length,
+                });
                 pos += length;
                 continue;
             }
@@ -150,8 +150,7 @@ mod tests {
         let off = 0x10usize;
         data[off] = b'D';
         data[off + 1] = b'L';
-        data[off + 2..off + 6]
-            .copy_from_slice(&((IMAGE_CHUNK_MIN_LEN - 1) as u32).to_le_bytes());
+        data[off + 2..off + 6].copy_from_slice(&((IMAGE_CHUNK_MIN_LEN - 1) as u32).to_le_bytes());
         data[off + 6..off + 10].copy_from_slice(&0x0001_4000u32.to_le_bytes());
         assert!(find_image_chunks(&data).is_empty());
     }
@@ -174,7 +173,10 @@ mod tests {
         let mut data = vec![0u8; 256];
         data[0x10 + 0x26] = 0xa0;
         data[0x10 + 0x27] = 0x09;
-        let chunk = ChunkRef { offset: 0x10, length: IMAGE_CHUNK_MIN_LEN };
+        let chunk = ChunkRef {
+            offset: 0x10,
+            length: IMAGE_CHUNK_MIN_LEN,
+        };
         assert_eq!(read_u16_at(&data, chunk, 0x26), Some(0x09a0));
     }
 
@@ -182,7 +184,10 @@ mod tests {
     fn read_u16_at_returns_none_past_chunk_length() {
         let data = vec![0u8; 256];
         // Chunk advertises 0x42 bytes; offset 0x42 would be past it.
-        let chunk = ChunkRef { offset: 0, length: IMAGE_CHUNK_MIN_LEN };
+        let chunk = ChunkRef {
+            offset: 0,
+            length: IMAGE_CHUNK_MIN_LEN,
+        };
         assert_eq!(read_u16_at(&data, chunk, IMAGE_CHUNK_MIN_LEN), None);
         // And a partially-out-of-range read.
         assert_eq!(read_u16_at(&data, chunk, IMAGE_CHUNK_MIN_LEN - 1), None);

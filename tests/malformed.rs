@@ -61,20 +61,29 @@ fn no_dl_magic_returns_truncated_not_panic() {
     let mut data = vec![0u8; 0x100];
     data[..5].copy_from_slice(b"ViGBe");
     let cfg = Config::default();
-    assert!(matches!(decode_max(&data, &cfg), Err(MaxError::Truncated { .. })));
+    assert!(matches!(
+        decode_max(&data, &cfg),
+        Err(MaxError::Truncated { .. })
+    ));
 }
 
 #[test]
 fn bad_magic_returns_bad_magic_not_panic() {
     let data = vec![0u8; 0x100]; // all zeros, no magic
     let cfg = Config::default();
-    assert!(matches!(decode_max(&data, &Config::default()), Err(MaxError::BadMagic { .. })));
+    assert!(matches!(
+        decode_max(&data, &Config::default()),
+        Err(MaxError::BadMagic { .. })
+    ));
     let _ = cfg;
 }
 
 #[test]
 fn empty_input_returns_bad_magic_not_panic() {
-    assert!(matches!(decode_max(&[], &Config::default()), Err(MaxError::BadMagic { .. })));
+    assert!(matches!(
+        decode_max(&[], &Config::default()),
+        Err(MaxError::BadMagic { .. })
+    ));
 }
 
 /// Build a minimal `.max` containing one image chunk with the supplied
@@ -163,8 +172,7 @@ fn zero_consume_type2_fails_terminate_in_bounded_time() {
     // Width = 8, height = chunk_len so the dispatcher tries to fill many
     // rows. Stays well under the megapixel cap (8 * 16384 = 131k pixels).
     data[chunk_off + 0x26..chunk_off + 0x28].copy_from_slice(&8u16.to_le_bytes());
-    data[chunk_off + 0x28..chunk_off + 0x2a]
-        .copy_from_slice(&(chunk_len as u16).to_le_bytes());
+    data[chunk_off + 0x28..chunk_off + 0x2a].copy_from_slice(&(chunk_len as u16).to_le_bytes());
     // Body at chunk_off + 0x42: alternate 0x80 (type-2 marker) and 0x00
     // (bytes whose top-7 prefix is 0b0000000 = no TAB7 match).
     let body_start = chunk_off + 0x42;
@@ -208,14 +216,13 @@ fn pathological_resync_config_does_not_hang() {
     data[chunk_off] = b'D';
     data[chunk_off + 1] = b'L';
     data[chunk_off + 2..chunk_off + 6].copy_from_slice(&chunk_len.to_le_bytes());
-    data[chunk_off + 6..chunk_off + 10]
-        .copy_from_slice(&0x0001_4000u32.to_le_bytes());
+    data[chunk_off + 6..chunk_off + 10].copy_from_slice(&0x0001_4000u32.to_le_bytes());
     data[chunk_off + 0x26..chunk_off + 0x28].copy_from_slice(&8u16.to_le_bytes());
     data[chunk_off + 0x28..chunk_off + 0x2a].copy_from_slice(&2u16.to_le_bytes());
     let body = chunk_off + 0x42;
     data[body] = 0xC0; // BLANK 1 line — sets last_kind = Ok
     data[body + 1] = 0x80; // type-2 marker
-    // bytes that fail TAB7 — top-7 prefix 0b0000000
+                           // bytes that fail TAB7 — top-7 prefix 0b0000000
     data[body + 2] = 0x00;
     data[body + 3] = 0x00;
 

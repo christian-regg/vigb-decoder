@@ -134,12 +134,16 @@ impl Default for Config {
 impl Config {
     /// Start building a custom Config (defaults to canonical).
     pub fn builder() -> ConfigBuilder {
-        ConfigBuilder { inner: Self::default() }
+        ConfigBuilder {
+            inner: Self::default(),
+        }
     }
 }
 
 /// Fluent builder for `Config`.
-pub struct ConfigBuilder { inner: Config }
+pub struct ConfigBuilder {
+    inner: Config,
+}
 
 macro_rules! setter {
     ($field:ident, $type:ty) => {
@@ -170,7 +174,9 @@ impl ConfigBuilder {
     setter!(reset_ref_after_drift, bool);
 
     /// Finalize the configuration.
-    pub fn build(self) -> Config { self.inner }
+    pub fn build(self) -> Config {
+        self.inner
+    }
 }
 
 #[cfg(test)]
