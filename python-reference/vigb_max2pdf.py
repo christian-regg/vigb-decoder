@@ -399,7 +399,8 @@ def _resync_probe(data, start_pos, table_prev, width, line_bytes, n_steps):
     return n_ok, n_drift
 
 
-def decode_image_chunk(data, chunk_start, t0_reset=False, t0_blank=False,
+def decode_image_chunk(data, chunk_start, chunk_length=None,
+                       t0_reset=False, t0_blank=False,
                        t0_drop_after_drift='', t0_drop_kinds=None,
                        drop_blank_after_drift=False, drop_blank_kinds=None,
                        reset_ref_after_drift=False, suppress_t1_bad=False,
@@ -506,7 +507,19 @@ def decode_image_chunk(data, chunk_start, t0_reset=False, t0_blank=False,
     out = bytearray()
     blank = bytes(row_bytes)
     pos = img_start
-    n = len(data)
+    # SEC-M03: bound the dispatcher to this chunk only. A malformed file
+    # can pack many minimum-size chunks back-to-back (each header
+    # satisfies find_image_chunks's invariants but the payload is empty
+    # or truncated). With the old `n = len(data)` bound, every chunk's
+    # dispatch loop could scan into later chunks' bytes, producing
+    # roughly O(N**2) work in the chunk count. Bounding to
+    # chunk_start + chunk_length restores the O(chunk_length) bound.
+    # Mirrors the Rust hardening at src/dispatch.rs. For backward
+    # compatibility with callers that don't pass chunk_length, fall back
+    # to reading the chunk header's length field (DL header at +0x02).
+    if chunk_length is None:
+        chunk_length = struct.unpack_from('<I', data, chunk_start + 0x02)[0]
+    n = chunk_start + chunk_length
     y = 0
     last_kind = None  # 'OK', 'V0', 'FAIL', 'BAD', 'T0', 'T1', 'T1ok', 'BLANK'
     # 10th-session 2nd pass: per-FAIL local-context gate. Track last K
@@ -927,7 +940,9 @@ def parse_max(path, t0_reset=False, t0_drop_after_drift='', t0_drop_kinds=None,
         raise ValueError(f"{path}: no image chunks found")
     pages = []
     for chunk_start, chunk_length in chunks:
-        pages.append(decode_image_chunk(data, chunk_start, t0_reset=t0_reset,
+        pages.append(decode_image_chunk(data, chunk_start,
+                                         chunk_length=chunk_length,
+                                         t0_reset=t0_reset,
                                          t0_drop_after_drift=t0_drop_after_drift,
                                          t0_drop_kinds=t0_drop_kinds,
                                          drop_blank_after_drift=drop_blank_after_drift,
