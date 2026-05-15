@@ -5,6 +5,9 @@ Cargo.lock.bak
 .vscode
 *.swp
 .DS_Store
+# Python bytecode caches from running python-reference/vigb_max2pdf.py
+__pycache__/
+*.pyc
 # Local-only corpus tests pull from outside the repo
 /tests-private/
 # Local-only Claude Code guidance; not part of the published repo
