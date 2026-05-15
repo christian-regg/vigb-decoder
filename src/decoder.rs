@@ -4,7 +4,16 @@ use crate::bitstream::BitCursor;
 use crate::ccitt::{DispatchEntry, BLACK_TABLE, DISPATCH, TAB7, WHITE_TABLE};
 
 /// A single decoded page.
+///
+/// Marked `#[non_exhaustive]`: out-of-crate callers must obtain `Page`
+/// values from the decoder (e.g. [`crate::decode_max`]) rather than
+/// constructing one via struct-literal syntax. Decoder-produced pages
+/// always satisfy `bitmap.len() == row_bytes * height`, `dpi_x != 0`,
+/// `dpi_y != 0`, and `row_bytes * 8` fits in `u32` — invariants that
+/// [`crate::write_pdf`] relies on. Allows new fields to be added
+/// without a semver-breaking change.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Page {
     /// Image width in pixels (significant pixels per row).
     pub width: u32,
@@ -28,7 +37,11 @@ pub struct Page {
 
 /// Embedded preview thumbnail, decoded and (optionally) upscaled to
 /// match the main image's pixel dimensions.
+///
+/// Marked `#[non_exhaustive]` for the same reason as [`Page`]: see that
+/// type's docs.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Preview {
     /// Preview width in pixels.
     pub width: u32,
