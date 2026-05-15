@@ -7,3 +7,5 @@ Cargo.lock.bak
 .DS_Store
 # Local-only corpus tests pull from outside the repo
 /tests-private/
+# Local-only Claude Code guidance; not part of the published repo
+/CLAUDE.md
