@@ -26,6 +26,7 @@ Long names match exactly so muscle memory transfers.
 | `--reset-ref-after-drift` | off | Reset reference table after a drift event |
 | `--keep-drift-blanks` | off | Keep type-3 BLANK markers after drift (diagnostic — disables 6th-session fix) |
 | `--keep-t1-dispatches` | off | Keep type-1 dispatches (diagnostic — disables 6th-session fix) |
+| `--max-pages` | 1024 | Maximum image-chunk count accepted per file (SEC-M04 cap). Files claiming more chunks are rejected before decode. Raise for legitimate large scanned collections; lower for service deployments. |
 
 `--stats` is the one CLI-only addition — the Python reference computes
 stats internally but doesn't have a corresponding CLI flag.

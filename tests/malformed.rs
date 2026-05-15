@@ -278,8 +278,12 @@ fn many_back_to_back_minimum_chunks_terminate_in_bounded_time() {
         data[off + 0x28..off + 0x2a].copy_from_slice(&1u16.to_le_bytes());
     }
 
+    // 2000 chunks exceeds the SEC-M04 page-count cap (default 1024), so we
+    // raise it explicitly here — this test exercises the SEC-M03 dispatcher
+    // bound, not the SEC-M04 page cap.
+    let cfg = Config::builder().max_pages(u32::MAX).build();
     let start = Instant::now();
-    let _ = decode_max(&data, &Config::default());
+    let _ = decode_max(&data, &cfg);
     let elapsed = start.elapsed();
     assert!(
         elapsed.as_secs() < 5,
@@ -287,6 +291,51 @@ fn many_back_to_back_minimum_chunks_terminate_in_bounded_time() {
          SEC-M03 dispatcher bound may have regressed",
         elapsed,
         n_chunks
+    );
+}
+
+#[test]
+fn page_count_above_cap_returns_too_many_pages() {
+    // SEC-M04: a file claiming more image chunks than Config::max_pages is
+    // rejected before decoding any chunk, defending against per-chunk
+    // memory amplification (each page allocates up to ~25 MiB and is
+    // retained until decode_max returns).
+    let n_chunks = 1025usize; // just over the default cap of 1024
+    let chunk_len = 0x42u32;
+    let total_len = 0x90 + n_chunks * chunk_len as usize + 0x10;
+    let mut data = vec![0u8; total_len];
+    data[..5].copy_from_slice(b"ViGBe");
+    for i in 0..n_chunks {
+        let off = 0x90 + i * chunk_len as usize;
+        data[off] = b'D';
+        data[off + 1] = b'L';
+        data[off + 2..off + 6].copy_from_slice(&chunk_len.to_le_bytes());
+        let flags = 0x4000u32 | (((i as u32) + 1) << 16);
+        data[off + 6..off + 10].copy_from_slice(&flags.to_le_bytes());
+        data[off + 0x26..off + 0x28].copy_from_slice(&8u16.to_le_bytes());
+        data[off + 0x28..off + 0x2a].copy_from_slice(&1u16.to_le_bytes());
+    }
+
+    let result = decode_max(&data, &Config::default());
+    assert!(
+        matches!(
+            result,
+            Err(MaxError::TooManyPages {
+                count: 1025,
+                max: 1024
+            })
+        ),
+        "expected TooManyPages, got {:?}",
+        result
+    );
+
+    // Same file under an explicitly raised cap decodes (or fails for other
+    // benign reasons) — proves the cap is configurable, not a hard wall.
+    let cfg = Config::builder().max_pages(u32::MAX).build();
+    let result2 = decode_max(&data, &cfg);
+    assert!(
+        !matches!(result2, Err(MaxError::TooManyPages { .. })),
+        "raised cap should not trigger TooManyPages"
     );
 }
 

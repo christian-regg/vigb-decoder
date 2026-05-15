@@ -97,6 +97,11 @@ struct Cli {
     /// Reset reference table after a drift event
     #[arg(long)]
     reset_ref_after_drift: bool,
+
+    /// Maximum image-chunk count accepted per file (SEC-M04 cap; default
+    /// 1024). Files claiming more chunks are rejected before any decode.
+    #[arg(long, default_value_t = 1024)]
+    max_pages: u32,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
@@ -169,6 +174,7 @@ fn build_config(cli: &Cli) -> Result<Config, String> {
     cfg = cfg.fail_resync_min_confidence(cli.fail_resync_min_confidence);
     cfg = cfg.fail_resync_budget(cli.fail_resync_budget);
     cfg = cfg.reset_ref_after_drift(cli.reset_ref_after_drift);
+    cfg = cfg.max_pages(cli.max_pages);
 
     Ok(cfg.build())
 }

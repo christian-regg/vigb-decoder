@@ -43,6 +43,20 @@ pub enum MaxError {
         /// The configured maximum allowed pixel count.
         max: u64,
     },
+    /// The file declares more image chunks than [`crate::Config::max_pages`]
+    /// allows. Defends against multi-chunk memory amplification: each
+    /// decoded page can allocate up to `MAX_IMAGE_PIXELS / 8` bytes
+    /// (~25 MiB) of bitmap, and `decode_max` retains every page until
+    /// the call returns. A crafted file with N chunks at the dimension
+    /// cap could request `N × 25 MiB` of resident memory; this cap
+    /// rejects files claiming more than `Config::max_pages` chunks.
+    #[error("file declares {count} image chunks, exceeds max_pages = {max}")]
+    TooManyPages {
+        /// Number of image chunks discovered in the file.
+        count: usize,
+        /// Configured page-count cap from [`crate::Config::max_pages`].
+        max: u32,
+    },
     /// Underlying IO error.
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
@@ -85,6 +99,17 @@ mod tests {
         let s = e.to_string();
         assert!(s.contains("65535x65535"));
         assert!(s.contains("4294836225 pixels"));
+    }
+
+    #[test]
+    fn too_many_pages_displays() {
+        let e = MaxError::TooManyPages {
+            count: 5000,
+            max: 1024,
+        };
+        let s = e.to_string();
+        assert!(s.contains("5000"));
+        assert!(s.contains("1024"));
     }
 
     #[test]

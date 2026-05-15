@@ -62,6 +62,8 @@ pub use pdf::{write_pdf, write_pdf_bytes, PdfOptions};
 /// - [`MaxError::Truncated`] if no valid image chunks are found.
 /// - [`MaxError::ImageTooLarge`] if any chunk's declared dimensions
 ///   exceed [`MAX_IMAGE_PIXELS`].
+/// - [`MaxError::TooManyPages`] if the file claims more image chunks
+///   than [`Config::max_pages`] allows (SEC-M04).
 pub fn decode_max(data: &[u8], cfg: &Config) -> Result<Vec<Page>> {
     if data.len() < 5 || &data[..5] != b"ViGBe" {
         return Err(MaxError::BadMagic { offset: 0u64 });
@@ -72,6 +74,16 @@ pub fn decode_max(data: &[u8], cfg: &Config) -> Result<Vec<Page>> {
             offset: 0u64,
             need: 0x40,
             have: data.len(),
+        });
+    }
+    // SEC-M04: bound total page count before iterating. Each Page allocates
+    // up to MAX_IMAGE_PIXELS / 8 bytes (~25 MiB) and is retained in `out`
+    // until this function returns; an N-chunk file can request N × 25 MiB
+    // resident memory without this cap.
+    if (chunks.len() as u64) > cfg.max_pages as u64 {
+        return Err(MaxError::TooManyPages {
+            count: chunks.len(),
+            max: cfg.max_pages,
         });
     }
     let mut out = Vec::with_capacity(chunks.len());

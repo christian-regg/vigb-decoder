@@ -106,6 +106,17 @@ pub struct Config {
     pub fail_resync_budget: u32,
     /// Reset reference table to all-white after a drift event.
     pub reset_ref_after_drift: bool,
+
+    /// Maximum total image-chunk count [`crate::decode_max`] will accept
+    /// from a single file. Defends against multi-chunk memory
+    /// amplification (each decoded page can allocate up to
+    /// `MAX_IMAGE_PIXELS / 8` bytes and `decode_max` retains every page
+    /// until it returns). Default 1024; raise for legitimate large
+    /// scanned collections, lower for service deployments. SEC-M04.
+    /// The Python reference at `python-reference/vigb_max2pdf.py` has no
+    /// analogue — deliberate Rust-side hardening, same shape as SEC-M02
+    /// and SEC-M03.
+    pub max_pages: u32,
 }
 
 impl Default for Config {
@@ -127,6 +138,7 @@ impl Default for Config {
             fail_resync_min_confidence: 0,
             fail_resync_budget: 0,
             reset_ref_after_drift: false,
+            max_pages: 1024,
         }
     }
 }
@@ -172,6 +184,7 @@ impl ConfigBuilder {
     setter!(fail_resync_min_confidence, u32);
     setter!(fail_resync_budget, u32);
     setter!(reset_ref_after_drift, bool);
+    setter!(max_pages, u32);
 
     /// Finalize the configuration.
     pub fn build(self) -> Config {
@@ -206,6 +219,7 @@ mod tests {
         assert_eq!(c.fail_resync_min_confidence, 0);
         assert_eq!(c.fail_resync_budget, 0);
         assert!(!c.reset_ref_after_drift);
+        assert_eq!(c.max_pages, 1024);
     }
 
     #[test]
