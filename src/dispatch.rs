@@ -129,7 +129,21 @@ pub(crate) fn decode_image_chunk(
 
     // ── Stream state ─────────────────────────────────────────────────────────
     let mut pos = chunk_start + 0x42; // CCITT line stream starts at +0x42
-    let n = data.len();
+
+    // SEC-M03: bound the dispatcher to this chunk only. A malformed file
+    // can pack many tiny chunks back-to-back (each header satisfies
+    // `find_image_chunks`'s invariants but the payload is empty or
+    // truncated). With the old `n = data.len()` bound, every chunk's
+    // dispatch loop could scan into later chunks' bytes, producing roughly
+    // O(N²) work in the chunk count. Bounding to `chunk_start +
+    // chunk_length` restores the documented O(chunk_length) invariant
+    // (see comment block below). `find_image_chunks` already guarantees
+    // `chunk_start + chunk_length <= data.len()`, so all later
+    // `pos < n`, `row_end > n`, and resync bound checks remain in-bounds.
+    // The Python reference at `python-reference/vigb_max2pdf.py` is still
+    // unbounded; deliberate Rust-side hardening (parity-divergent, like
+    // SEC-M02).
+    let n = chunk_start + chunk_length;
     let mut y: u32 = 0;
     let mut consecutive_fail: u32 = 0;
 

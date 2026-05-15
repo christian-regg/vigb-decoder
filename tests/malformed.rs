@@ -244,6 +244,53 @@ fn pathological_resync_config_does_not_hang() {
 }
 
 #[test]
+fn many_back_to_back_minimum_chunks_terminate_in_bounded_time() {
+    // SEC-M03: a malformed file can pack many minimum-size (0x42-byte)
+    // image chunks back-to-back. Pre-fix, the per-chunk dispatcher was
+    // bounded by `data.len()` instead of `chunk_start + chunk_length`,
+    // so the dispatch loop scanned into every later chunk's header bytes
+    // interpreting them as stray markers. Total work was O(N²) in the
+    // chunk count, contradicting the documented O(chunk_length) bound.
+    //
+    // Post-fix, each chunk's loop is bounded to its own length. With
+    // every chunk at the 0x42 minimum the body is empty, so the loop
+    // exits immediately and per-chunk work is O(1).
+    use std::time::Instant;
+
+    let n_chunks = 2000usize;
+    let chunk_len = 0x42u32;
+    let total_len = 0x90 + n_chunks * chunk_len as usize + 0x10;
+    let mut data = vec![0u8; total_len];
+    data[..5].copy_from_slice(b"ViGBe");
+    for i in 0..n_chunks {
+        let off = 0x90 + i * chunk_len as usize;
+        data[off] = b'D';
+        data[off + 1] = b'L';
+        data[off + 2..off + 6].copy_from_slice(&chunk_len.to_le_bytes());
+        // flags: low16 = 0x4000 (image tag), high16 = page_index (must be > 0
+        // for find_image_chunks to admit the chunk).
+        let flags = 0x4000u32 | (((i as u32) + 1) << 16);
+        data[off + 6..off + 10].copy_from_slice(&flags.to_le_bytes());
+        // Minimal dimensions: width=8, height=1. Keeps per-chunk bitmap
+        // allocation tiny (4 bytes) and ensures the post-fix loop exits
+        // before any real work.
+        data[off + 0x26..off + 0x28].copy_from_slice(&8u16.to_le_bytes());
+        data[off + 0x28..off + 0x2a].copy_from_slice(&1u16.to_le_bytes());
+    }
+
+    let start = Instant::now();
+    let _ = decode_max(&data, &Config::default());
+    let elapsed = start.elapsed();
+    assert!(
+        elapsed.as_secs() < 5,
+        "decode_max took {:?} on {} back-to-back 0x42-byte chunks; \
+         SEC-M03 dispatcher bound may have regressed",
+        elapsed,
+        n_chunks
+    );
+}
+
+#[test]
 fn pathological_preview_dimensions_skip_preview_no_panic() {
     // Construct a chunk with a tiny image but pathological preview
     // dimensions. The preview decoder bails (returns None) instead of
