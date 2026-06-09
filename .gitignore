@@ -12,5 +12,6 @@ __pycache__/
 /tests-private/
 # Local-only Claude Code guidance; not part of the published repo
 /CLAUDE.md
-# Local-only release/marketing checklist; not part of the published repo
+# Local-only release/marketing checklist + outreach plan; not part of the published repo
 /docs/release-checklist.md
+/docs/outreach.md
