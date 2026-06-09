@@ -29,8 +29,9 @@ These projects implement partial PaperPort decoders. They are
 crate (see `provenance.md`); they were used only as cross-checks
 during reverse engineering.
 
-- [paperman](https://github.com/sjg20/paperman) — Java PaperPort browser
-  by Simon Glass. Active. Does not support PaperPort 2 era files.
+- [paperman](https://github.com/sjg20/paperman) — C++/Qt document
+  scanning and filing app with a `.max` viewer, by Simon Glass.
+  Active. Does not support PaperPort 2 era files.
 - [max2pdf](https://github.com/orangeturtle739/max2pdf) — Python
   PaperPort-to-PDF by orangeturtle739. Dormant. Does not support
   PaperPort 2 era files.

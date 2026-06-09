@@ -25,7 +25,9 @@ python vigb_max2pdf.py scan.max scan2.max -o out/
 ```
 
 See `python vigb_max2pdf.py --help` for the full flag list. The CLI
-flags match the Rust binary's `vigb-max2pdf` 1:1.
+flags match the Rust binary's `vigb-max2pdf`, except for two
+Rust-only flags (`--stats` and `--max-pages` — see
+[`docs/cli.md`](../docs/cli.md)).
 
 ## License + provenance
 

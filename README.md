@@ -4,7 +4,7 @@
 [![crates.io](https://img.shields.io/crates/v/vigb-decoder.svg)](https://crates.io/crates/vigb-decoder)
 [![docs.rs](https://docs.rs/vigb-decoder/badge.svg)](https://docs.rs/vigb-decoder)
 
-Decoder for PaperPort 2 (`.max`) image scans from 1986–87.
+Decoder for PaperPort 2 (`.max`) image scans.
 
 ## Why this exists
 
@@ -64,12 +64,14 @@ CLI flags. Same MIT/Apache-2.0 license.
 ## Library use
 
 ```rust
-use vigb_decoder::{decode_max_file, write_pdf, Config};
+use vigb_decoder::{decode_max_file, write_pdf, Config, MaxError};
 use std::path::Path;
 
-let pages = decode_max_file("scan.max", &Config::default())?;
-write_pdf(&pages, Path::new("scan.pdf"))?;
-# Ok::<(), vigb_decoder::MaxError>(())
+fn main() -> Result<(), MaxError> {
+    let pages = decode_max_file("scan.max", &Config::default())?;
+    write_pdf(&pages, Path::new("scan.pdf"))?;
+    Ok(())
+}
 ```
 
 `Page::bitmap` is 1-bit packed, MSB-first per byte. **Bit value 1 means
