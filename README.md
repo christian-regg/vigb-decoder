@@ -130,3 +130,7 @@ Licensed under either of:
 - [MIT license](LICENSE-MIT)
 
 at your option.
+
+PaperPort is a trademark of its respective owner (Tungsten Automation,
+formerly Kofax / Nuance / ScanSoft). This project is independent and
+not affiliated with or endorsed by the trademark holder.
