@@ -1,6 +1,6 @@
 # vigb-decoder
 
-[![ci](https://github.com/creggch/vigb-decoder/actions/workflows/ci.yml/badge.svg)](https://github.com/creggch/vigb-decoder/actions/workflows/ci.yml)
+[![ci](https://github.com/christian-regg/vigb-decoder/actions/workflows/ci.yml/badge.svg)](https://github.com/christian-regg/vigb-decoder/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/vigb-decoder.svg)](https://crates.io/crates/vigb-decoder)
 [![docs.rs](https://docs.rs/vigb-decoder/badge.svg)](https://docs.rs/vigb-decoder)
 
@@ -26,7 +26,7 @@ not support this format.
 This installs the `vigb-max2pdf` binary in `~/.cargo/bin/`.
 
 Pre-built binaries for Linux x86_64, Windows x86_64, and macOS aarch64
-are attached to each [release](https://github.com/creggch/vigb-decoder/releases).
+are attached to each [release](https://github.com/christian-regg/vigb-decoder/releases).
 
 ## Use
 

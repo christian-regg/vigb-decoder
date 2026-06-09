@@ -73,5 +73,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ~4× faster end-to-end than the Python reference (38 ms/page vs
   151 ms/page on 2464×3508 scans).
 
-[Unreleased]: https://github.com/creggch/vigb-decoder/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/creggch/vigb-decoder/releases/tag/v0.1.0
+[Unreleased]: https://github.com/christian-regg/vigb-decoder/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/christian-regg/vigb-decoder/releases/tag/v0.1.0
