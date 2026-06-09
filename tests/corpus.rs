@@ -97,7 +97,7 @@ fn corpus_regression() {
             assert_eq!(page.width, *ref_w, "{stem} page {i} width");
             assert_eq!(page.height, *ref_h, "{stem} page {i} height");
 
-            let pbm_row_bytes = ((*ref_w + 7) / 8) as usize;
+            let pbm_row_bytes = ref_w.div_ceil(8) as usize;
             let dec_row_bytes = page.row_bytes as usize;
             let mut row_diffs = 0u32;
             for y in 0..*ref_h as usize {
@@ -188,7 +188,7 @@ fn extract_pdf_main_images(path: &Path) -> Vec<(u32, u32, Vec<u8>)> {
             // The decoded payload's row stride is row_bytes = ((w + 7)/8 + 3) & ~3.
             // The reference test compares against tightly-packed PBM rows of
             // width (w+7)/8 bytes. Trim the padding from each row.
-            let line_bytes = ((w + 7) / 8) as usize;
+            let line_bytes = w.div_ceil(8) as usize;
             let row_bytes_padded = (line_bytes + 3) & !3;
             let mut tight = Vec::with_capacity(line_bytes * h as usize);
             for y in 0..h as usize {

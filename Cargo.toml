@@ -26,6 +26,9 @@ path = "src/bin/vigb-max2pdf.rs"
 [[bin]]
 name = "encode-fixture"
 path = "tools/encode-fixture/main.rs"
+# Internal fixture generator — not installed by `cargo install vigb-decoder`.
+# Build with: cargo run --features fixture-tool --bin encode-fixture
+required-features = ["fixture-tool"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -39,7 +42,8 @@ criterion = "0.5"
 
 [features]
 default = []
-corpus = []   # Local-only feature: enables tests/corpus.rs against personal archive
+corpus = []        # Local-only feature: enables tests/corpus.rs against personal archive
+fixture-tool = []  # Gates the internal encode-fixture binary out of `cargo install`
 
 [profile.release]
 lto = "thin"
